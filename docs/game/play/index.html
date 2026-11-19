@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>今天，你是哪朵花？</title>
+<meta name="description" content="〈愛蓮說〉情境遊戲：每題三種做法，全班投完一起揭曉是哪朵花，最後做出自己的三花箋與 AI 花束。">
+<meta name="theme-color" content="#f4f0e6">
+<link rel="stylesheet" href="../../assets/style.css?v=20261120b">
+<link rel="stylesheet" href="../game.css?v=20261120b">
+<script src="../../assets/config.js"></script>
+</head>
+<body class="g-body">
+<main class="g-wrap" id="main">
+  <div id="app"></div>
+  <div class="err" id="err" role="alert"></div>
+</main>
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="存花箋">
+  <div><img id="sheetImg" alt="我的三花箋"><p><b>長按圖片 → 選「加入照片」</b></p><p class="small">存好之後，點下面的按鈕回去</p><button class="btn" id="sheetClose" type="button">回去</button></div>
+</div>
+
+<script src="../../assets/common.js?v=20261120b"></script>
+<script src="../scenes.js?v=20261120b"></script>
+<script>
+const $ = id => document.getElementById(id);
+const app = $('app');
+const dev = deviceId();
+const GIMG = new URL('../img/', location.href).href;
+const sceneImg = id => GIMG + 'scene_' + id + '.webp';
+const flowerImg = f => GIMG + 'flower_' + f + '.webp';
+const styleImg = s => GIMG + 'style_' + s + '.webp';
+const F3 = ['lian', 'ju', 'mudan'];
+
+let code = (new URLSearchParams(location.search).get('c') || '').replace(/\D/g, '').slice(0, 6);
+let st = null, view = '', timer = null, pick = { choice: null, guess: null }, sending = false, seatPick = null;
+
+function setErr(m) { $('err').textContent = m || ''; }
+const sum3 = c => (c.ju || 0) + (c.mudan || 0) + (c.lian || 0);
+
+function brand() {
+  return el('div', { class: 'g-head' },
+    el('div', { class: 'g-brand' },
+      el('div', { class: 'trio' }, ...F3.map(f => el('img', { src: flowerImg(f), alt: '', class: '', style: `--c:${GAME_FLOWER[f].color}` }))),
+      el('div', {}, el('b', {}, '今天，你是哪朵花？'), el('small', {}, '〈愛蓮說〉情境遊戲'))),
+    st && st.me ? el('span', { class: 'chip seat' }, `${st.me.seat} 號`) : null);
+}
+
+function dots() {
+  const n = st.deck.length;
+  const d = el('div', { class: 'dots', 'aria-label': `第 ${st.qi + 1} 題，共 ${n} 題` });
+  for (let i = 0; i < n; i++) d.append(el('i', { class: i < st.qi ? 'done' : i === st.qi ? 'now' : '' }));
+  d.append(el('span', {}, `第 ${st.qi + 1} / ${n} 題`));
+  return d;
+}
+
+// ---------- 輸入代號 ----------
+function renderCode(msg) {
+  view = 'code';
+  const inp = el('input', { type: 'text', inputmode: 'numeric', maxlength: '6', class: 'code-input', placeholder: '000000', 'aria-label': '遊戲代號', autocomplete: 'off' });
+  const go = el('button', { class: 'btn block', type: 'button' }, '進入遊戲');
+  const enter = () => { const v = inp.value.replace(/\D/g, ''); if (v.length !== 6) return setErr('代號是 6 個數字'); code = v; history.replaceState(null, '', '?c=' + v); start(); };
+  go.addEventListener('click', enter);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
+  app.replaceChildren(
+    el('div', { class: 'paper join-hero' },
+      el('div', { class: 'flowers' }, ...F3.map(f => el('img', { src: flowerImg(f), alt: GAME_FLOWER[f].long, style: `--c:${GAME_FLOWER[f].color}` }))),
+      el('h1', {}, '今天，你是哪朵花？'),
+      el('p', { class: 'muted' }, '輸入老師螢幕上的 6 位數代號'),
+      inp, el('div', { style: 'height:12px' }), go));
+  setErr(msg || '');
+  inp.focus();
+}
+
+// ---------- 選座號 ----------
+function renderSeat() {
+  const key = 'seat' + st.seats.join(',');
+  if (view === key) return;
+  view = key;
+  const max = Math.max(40, ...st.seats);
+  const grid = el('div', { class: 'seats', role: 'group', 'aria-label': '座號' });
+  const ok = el('button', { class: 'btn block mudan', type: 'button', disabled: seatPick ? false : true }, seatPick ? `我是 ${seatPick} 號，加入` : '先點你的座號');
+  for (let i = 1; i <= max; i++) {
+    const taken = st.seats.includes(i);
+    const b = el('button', { type: 'button', 'aria-pressed': String(seatPick === i), disabled: taken }, String(i));
+    b.addEventListener('click', () => {
+      seatPick = i;
+      grid.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      ok.disabled = false; ok.textContent = `我是 ${i} 號，加入`;
+    });
+    grid.append(b);
+  }
+  if (seatPick && st.seats.includes(seatPick)) { seatPick = null; ok.disabled = true; ok.textContent = '先點你的座號'; }
+  ok.addEventListener('click', async () => {
+    ok.disabled = true; setErr('');
+    try { await api(`/api/game/${code}/join`, { body: { device: dev, seat: seatPick } }); view = ''; await poll(); }
+    catch (e) { setErr(e.message); ok.disabled = false; view = ''; poll(); }
+  });
+  app.replaceChildren(brand(),
+    el('div', { class: 'paper' },
+      el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '座'), '點你的座號', el('small', {}, '不用填名字，灰色的是已經有人選了')),
+      grid),
+    el('div', { class: 'send-row' }, ok));
+}
+
+// ---------- 等老師開始 ----------
+function renderLobby() {
+  if (view !== 'lobby') {
+    view = 'lobby';
+    app.replaceChildren(brand(),
+      el('div', { class: 'paper lobby-big' },
+        el('div', { class: 'seatno' }, String(st.me.seat), el('small', {}, '號')),
+        el('h2', { style: 'margin:14px 0 4px' }, '加入成功！等老師開始'),
+        el('p', { class: 'muted', id: 'lobbyN' }, ''),
+        el('p', { class: 'fine' }, '玩法：每一題是一個 2026 年的情境，有三種做法。選你真的會怎麼做，再猜全班最多人選哪個。全班都答完，才一起揭曉每個做法是哪一朵花。')),
+      el('p', { class: 'wait-note small' }, '選錯座號？重新整理後點正確的座號就好。'));
+  }
+  $('lobbyN').textContent = `已經有 ${st.joined} 人加入`;
+}
+
+// ---------- 作答 ----------
+function renderQ() {
+  const key = 'q' + st.qi;
+  const s = SCENE[st.deck[st.qi]];
+  const mine = st.me.answers[st.qi];
+  if (view !== key) {
+    view = key;
+    pick = mine ? { ...mine } : { choice: null, guess: null };
+    const opts = el('div', { class: 'g-opts', role: 'group', 'aria-label': '你會怎麼做' });
+    s.opts.forEach((o, i) => {
+      const b = el('button', { class: 'g-opt', type: 'button', 'aria-pressed': String(pick.choice === o.f) }, el('span', { class: 'lt' }, LETTERS[i]), el('span', {}, o.text));
+      b.addEventListener('click', () => { pick.choice = o.f; opts.querySelectorAll('.g-opt').forEach(x => x.setAttribute('aria-pressed', String(x === b))); refreshSend(); });
+      opts.append(b);
+    });
+    const guess = el('div', { class: 'guess', role: 'group', 'aria-label': '猜全班最多人選哪個' });
+    s.opts.forEach((o, i) => {
+      const b = el('button', { type: 'button', 'aria-pressed': String(pick.guess === o.f) }, LETTERS[i]);
+      b.addEventListener('click', () => { pick.guess = o.f; guess.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); refreshSend(); });
+      guess.append(b);
+    });
+    app.replaceChildren(brand(), dots(),
+      el('article', { class: 'paper scene' },
+        el('figure', { class: 'scene-art' }, el('img', { src: sceneImg(s.id), alt: '', width: '1200', height: '675' }), el('span', { class: 'qno' }, `情境 ${st.qi + 1}`)),
+        el('div', { class: 'scene-body' }, el('h1', {}, s.title), el('p', {}, s.scene))),
+      el('div', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '1'), '你真的會怎麼做？', el('small', {}, '沒有標準答案')), opts),
+      el('div', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '2'), '猜猜看：全班最多人會選哪個？', el('small', {}, '猜中得 1 分')), guess),
+      el('div', { id: 'sendArea' }));
+  }
+  refreshSend();
+}
+
+function refreshSend() {
+  const box = $('sendArea'); if (!box) return;
+  const mine = st.me.answers[st.qi];
+  const same = mine && mine.choice === pick.choice && mine.guess === pick.guess;
+  const nodes = [];
+  if (mine) nodes.push(el('div', { class: 'sent' }, el('div', {}, el('b', {}, '已送出！'), el('div', { class: 'small muted' }, '揭曉前還可以改。全班都答完就會揭曉。')),
+    el('span', { class: 'n' }, `${st.answered} / ${st.joined}`)));
+  if (!same) {
+    const ready = pick.choice && pick.guess;
+    const b = el('button', { class: 'btn mudan', type: 'button', disabled: !ready || sending }, !pick.choice ? '先選 ① 你的做法' : !pick.guess ? '再猜 ② 全班最多人選哪個' : mine ? '改成這個答案' : '送出');
+    b.addEventListener('click', send);
+    nodes.push(el('div', { class: 'send-row' }, b));
+  }
+  box.replaceChildren(...nodes);
+}
+
+async function send() {
+  if (sending) return;
+  sending = true; setErr(''); refreshSend();
+  try {
+    await api(`/api/game/${code}/answer`, { body: { device: dev, qi: st.qi, choice: pick.choice, guess: pick.guess } });
+    st.me.answers[st.qi] = { ...pick };
+  } catch (e) { setErr(e.message); }
+  sending = false;
+  await poll();
+}
+
+// ---------- 揭曉 ----------
+function renderReveal() {
+  const key = 'r' + st.qi;
+  if (view === key) return;
+  view = key;
+  const s = SCENE[st.deck[st.qi]];
+  const res = st.results[st.qi] || { ju: 0, mudan: 0, lian: 0 };
+  const t = sum3(res), top = Math.max(res.ju, res.mudan, res.lian);
+  const mine = st.me.answers[st.qi];
+  const cards = s.opts.map((o, i) => {
+    const F = GAME_FLOWER[o.f], n = res[o.f] || 0, fill = el('div', { class: 'fill' });
+    const isMine = mine && mine.choice === o.f, isTop = top > 0 && n === top;
+    const c = el('div', { class: `rv c-${o.f}${isMine ? ' is-mine' : ''}`, style: 'position:relative' },
+      isTop ? el('span', { class: 'tag-top' }, '全班最多') : null,
+      isMine ? el('span', { class: 'tag-mine' }, '你選的') : null,
+      el('div', { class: 'rv-in' },
+        el('div', { class: 'rv-face rv-front' }, el('div', { class: 'lt' }, LETTERS[i]), el('div', {}, o.text)),
+        el('div', { class: 'rv-face rv-back' },
+          el('div', { class: 'rv-top' }, el('img', { src: flowerImg(o.f), alt: '' }), el('div', { class: 'fl' }, el('b', {}, `${LETTERS[i]} 是${F.name}`), `${F.who}・花之${F.tag}`)),
+          el('div', { class: 'rv-text' }, el('span', { class: 'lt' }, LETTERS[i]), o.text),
+          el('div', { class: 'rv-bar' }, el('div', { class: 'track' }, fill), el('span', { class: 'num' }, `${n} 人・${pct(n, t)}%`)),
+          el('div', { class: 'rv-quote' }, `「${o.q}」`),
+          el('div', { class: 'rv-gc' }, el('span', { class: 'g' }, o.good), el('span', { class: 'c' }, o.care)))));
+    setTimeout(() => { c.classList.add('flip'); setTimeout(() => { fill.style.width = pct(n, t) + '%'; }, 500); }, 250 + i * 420);
+    return c;
+  });
+  let my;
+  if (!mine) my = el('div', { class: 'myline' }, '這一題你沒有作答，下一題記得選喔。');
+  else {
+    const mi = s.opts.findIndex(o => o.f === mine.choice), gi = s.opts.findIndex(o => o.f === mine.guess);
+    const hit = top > 0 && res[mine.guess] === top;
+    my = el('div', { class: 'myline' },
+      el('div', {}, `你選了 ${LETTERS[mi]}，是`, el('b', { style: `color:${GAME_FLOWER[mine.choice].color}` }, GAME_FLOWER[mine.choice].name), `。你猜全班最多人選 ${LETTERS[gi]}，`, hit ? '猜中了！' : '這次沒猜中。'),
+      el('span', { class: 'pt' }, hit ? '+1' : '＋0'));
+  }
+  app.replaceChildren(brand(), dots(),
+    el('h1', { style: 'font-size:clamp(26px,4.4vw,36px);letter-spacing:.08em;margin:8px 0 14px' }, `揭曉：${s.title}`),
+    el('div', { class: 'rv-grid' }, ...cards),
+    my,
+    el('div', { class: 'talk' }, el('small', {}, '想一想'), s.talk),
+    el('p', { class: 'fine', style: 'text-align:center' }, '三朵花都有好處，也都有要留意的地方。周敦頤選了蓮，是他自己的選擇。'),
+    el('p', { class: 'wait-note' }, st.qi + 1 < st.deck.length ? '等老師按下一題…' : '這是最後一題，等老師打開花箋…'));
+}
+
+// ---------- 結尾：花箋＋提示詞＋Padlet ----------
+const END_KEY = () => 'game_end_' + code;
+let endState = null;
+function loadEnd() {
+  try { endState = JSON.parse(store(END_KEY()) || 'null'); } catch { endState = null; }
+  endState = Object.assign({ w1: '', w2: '', because: '', style: 'gongbi', wrap: 'paper', lang: 'zh' }, endState || {});
+}
+function saveEnd() { store(END_KEY(), JSON.stringify(endState)); }
+
+function myStats() {
+  const counts = { ju: 0, mudan: 0, lian: 0 };
+  let hits = 0, answered = 0;
+  st.deck.forEach((_, i) => {
+    const a = st.me.answers[i]; if (!a) return;
+    answered++; counts[a.choice]++;
+    const r = st.results[i];
+    if (r) { const m = Math.max(r.ju, r.mudan, r.lian); if (m > 0 && r[a.guess] === m) hits++; }
+  });
+  return { counts, hits, answered };
+}
+
+function renderEnd() {
+  if (view === 'end') { updatePadlet(); return; }
+  view = 'end';
+  if (!st.me) { app.replaceChildren(brand(), el('div', { class: 'paper' }, '這一局已經結束了。下次記得一開始就選座號加入。')); return; }
+  loadEnd();
+  const S = myStats();
+  const top = F3.filter(f => S.counts[f] > 0).sort((a, b) => S.counts[b] - S.counts[a])[0];
+
+  // 1 花譜
+  const pu = el('div', { class: 'pu' }, ...F3.map(f => el('figure', { class: S.counts[f] ? '' : 'zero', style: `--c:${GAME_FLOWER[f].color}` },
+    el('img', { src: flowerImg(f), alt: GAME_FLOWER[f].long }), el('div', { class: 'cnt' }, String(S.counts[f]), el('small', {}, GAME_FLOWER[f].name)))));
+  const ratio = el('div', { class: 'ratio', 'aria-hidden': 'true' }, ...F3.filter(f => S.counts[f]).map(f => el('i', { style: `--c:${GAME_FLOWER[f].color};width:${pct(S.counts[f], S.answered)}%` })));
+  const say = top
+    ? el('p', { class: 'pu-say', style: `--c:${GAME_FLOWER[top].color}` }, '你最常選的是', el('b', {}, GAME_FLOWER[top].long), `：${GAME_FLOWER[top].mean}。你猜中全班多數 ${S.hits} / ${st.deck.length} 題。`)
+    : el('p', { class: 'pu-say' }, '你這一局沒有作答，花譜是空的。');
+
+  // 2 仿寫
+  const w1 = el('input', { type: 'text', class: 'w1', maxlength: '6', placeholder: '蓮', 'aria-label': '你喜愛的花或東西', value: endState.w1 });
+  const w2 = el('input', { type: 'text', class: 'w2', maxlength: '14', placeholder: '出淤泥而不染', 'aria-label': '它的特質', value: endState.w2 });
+  const bc = el('input', { type: 'text', maxlength: '24', placeholder: '例如：想幫大家把事情解決', 'aria-label': '因為我常常', value: endState.because });
+
+  // 3 畫風、容器
+  const styles = el('div', { class: 'styles', role: 'group', 'aria-label': '畫風' }, ...STYLES.map(s => {
+    const b = el('button', { class: 'style-opt', type: 'button', 'aria-pressed': String(endState.style === s.id) }, el('img', { src: styleImg(s.id), alt: '', loading: 'lazy', width: '300', height: '300' }), el('span', {}, s.name));
+    b.addEventListener('click', () => { endState.style = s.id; styles.querySelectorAll('.style-opt').forEach(x => x.setAttribute('aria-pressed', String(x === b))); changed(); });
+    return b;
+  }));
+  const wraps = el('div', { class: 'pills', role: 'group', 'aria-label': '花束的樣子' }, ...WRAPS.map(w => {
+    const b = el('button', { class: 'pill', type: 'button', 'aria-pressed': String(endState.wrap === w.id) }, w.name);
+    b.addEventListener('click', () => { endState.wrap = w.id; wraps.querySelectorAll('.pill').forEach(x => x.setAttribute('aria-pressed', String(x === b))); changed(); });
+    return b;
+  }));
+
+  // 4 花箋
+  const prev = el('img', { alt: '我的三花箋預覽', width: '1080', height: '1440' });
+  const saveBtn = el('button', { class: 'btn lian', type: 'button' }, '存到相簿');
+  saveBtn.addEventListener('click', () => saveCard(saveBtn));
+
+  // 5 提示詞
+  const pbox = el('textarea', { class: 'prompt-box', readonly: true, 'aria-label': 'AI 花束提示詞' });
+  const fillers = el('div', { class: 'fillers' });
+  const lang = el('div', { class: 'lang', role: 'group', 'aria-label': '提示詞語言' }, ...[['zh', '中文'], ['en', 'English']].map(([k, n]) => {
+    const b = el('button', { type: 'button', 'aria-pressed': String(endState.lang === k) }, n);
+    b.addEventListener('click', () => { endState.lang = k; lang.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); changed(); });
+    return b;
+  }));
+  const copyP = el('button', { class: 'btn mudan', type: 'button' }, '複製提示詞');
+  copyP.addEventListener('click', () => copy(pbox.value, copyP, '複製提示詞'));
+
+  // 6 Padlet
+  const titleCode = el('code', {}), bodyCode = el('code', {});
+  const copyT = el('button', { class: 'btn small', type: 'button' }, '複製標題');
+  const copyB = el('button', { class: 'btn small', type: 'button' }, '複製內文');
+  copyT.addEventListener('click', () => copy(titleCode.textContent, copyT, '複製標題'));
+  copyB.addEventListener('click', () => copy(bodyCode.textContent, copyB, '複製內文'));
+  const padBox = el('div', { id: 'padBox' });
+
+  const reviewText = '【我看到】你的花束裡最多的是＿＿，你的句子寫＿＿。\n【我欣賞】我喜歡＿＿，因為＿＿。\n【我好奇】為什麼你會＿＿？';
+  const copyR = el('button', { class: 'btn small', type: 'button' }, '複製互評格式');
+  copyR.addEventListener('click', () => copy(reviewText, copyR, '複製互評格式'));
+
+  function sentence() {
+    const a = w1.value.trim() || '＿＿', b = w2.value.trim() || '＿＿＿＿';
+    return `予獨愛${a}之${b}`;
+  }
+  function changed() {
+    endState.w1 = w1.value; endState.w2 = w2.value; endState.because = bc.value; saveEnd();
+    const bq = bouquet(S.counts, S.hits / Math.max(1, st.deck.length), endState.style, endState.wrap);
+    pbox.value = endState.lang === 'en' ? bq.en : bq.zh;
+    fillers.replaceChildren(...bq.fillers.map(t => el('span', {}, t)));
+    const flowerLine = F3.filter(f => S.counts[f]).map(f => `${GAME_FLOWER[f].name} ${S.counts[f]}`).join('・');
+    titleCode.textContent = `${st.me.seat} 號｜${flowerLine || '花譜'}`;
+    bodyCode.textContent = `${sentence()}。` + (top ? `\n我的花束裡最多的是${GAME_FLOWER[top].long}，因為我常常${bc.value.trim() || '＿＿＿＿'}。` : '');
+    clearTimeout(changed.t);
+    changed.t = setTimeout(async () => { cardData = { S, top, sentence: sentence(), because: bc.value.trim(), bq }; prev.src = await cardUrl(); }, 250);
+  }
+  [w1, w2, bc].forEach(x => x.addEventListener('input', changed));
+
+  app.replaceChildren(brand(),
+    el('h1', { style: 'font-size:clamp(28px,5vw,40px);letter-spacing:.1em;margin:8px 0 4px' }, '你的三花箋'),
+    el('p', { class: 'muted', style: 'margin:0 0 6px' }, '照下面 1 到 6 做完，最後貼到 Padlet。'),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '1'), '你的花譜'), pu, ratio, say,
+      el('p', { class: 'fine' }, '沒有哪朵花比較好。花譜只是記下你這一局常用的做法；換個情境、換個時間，你也可能選得不一樣。')),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '2'), '寫一句你的〈愛蓮說〉', el('small', {}, '仿寫「予獨愛蓮之出淤泥而不染」')),
+      el('div', { class: 'fang' }, '予獨愛', w1, '之', w2),
+      el('div', { class: 'because' }, el('span', {}, '我的花束裡最多的是' + (top ? GAME_FLOWER[top].long : '＿＿') + '，因為我常常'), bc),
+      el('p', { class: 'examples' }, '可以寫課文裡的花，也可以寫別的花或東西，例如：', el('b', {}, '予獨愛竹之風吹而不折'), '、', el('b', {}, '予獨愛向日葵之總是面向光'), '、', el('b', {}, '予獨愛仙人掌之耐得住寂寞'), '。')),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '3'), '挑一種畫風', el('small', {}, '縮圖是示意，實際畫出來會照你的花譜')), styles,
+      el('div', { class: 'sub-title' }, '花要怎麼放？'), wraps),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '4'), '存下你的花箋圖卡'),
+      el('div', { class: 'card-prev' }, prev, el('div', { class: 'btn-row' }, saveBtn))),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '5'), 'AI 花束提示詞', el('small', {}, '花的數量照你的花譜')),
+      el('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px' }, lang, el('span', { class: 'small muted' }, '畫出來不像，可以換英文版試試')),
+      pbox, fillers, el('div', { class: 'btn-row', style: 'margin-top:12px' }, copyP)),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '6'), '貼到 Padlet'),
+      el('ol', { class: 'how' },
+        el('li', {}, el('div', {}, el('b', {}, '打開班上的 Padlet，按「＋」新增一則貼文'), padBox)),
+        el('li', {}, el('div', {}, el('b', {}, '標題、內文貼上這兩段'),
+          el('div', { class: 'copyline' }, titleCode, copyT), el('div', { class: 'copyline' }, bodyCode, copyB))),
+        el('li', {}, el('div', {}, el('b', {}, '附件選 Padlet 的 AI 生圖，貼上第 5 步的提示詞'), el('span', { class: 'small muted' }, '在附件選單裡找「AI 圖像」或「我不會畫畫」。挑一張你喜歡的，再按發布。'))),
+        el('li', {}, el('div', {}, el('b', {}, '在自己的貼文按「留言」，附上第 4 步存好的花箋圖卡'), el('span', { class: 'small muted' }, 'Padlet 一則貼文只能放一張附件，所以花箋放在留言。'))))),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '★'), '去看同學的花束，用這個格式留言', el('small', {}, '至少回應 2 位')),
+      el('div', { class: 'review' },
+        el('div', { class: 'c-ju' }, el('b', {}, '【我看到】'), '你的花束裡最多的是＿＿，你的句子寫＿＿。'),
+        el('div', { class: 'c-lian' }, el('b', {}, '【我欣賞】'), '我喜歡＿＿，因為＿＿。（說出是哪一朵花或哪幾個字）'),
+        el('div', { class: 'c-mudan' }, el('b', {}, '【我好奇】'), '為什麼你會＿＿？（問一個真的想知道的問題）')),
+      el('ul', { class: 'rules' }, el('li', {}, '不評畫得美不美，不說哪種花比較好。'), el('li', {}, '被留言的人，可以回一句「謝謝，其實是因為＿＿」。')),
+      el('div', { class: 'btn-row', style: 'margin-top:12px' }, copyR)));
+  changed();
+  updatePadlet();
+}
+
+function updatePadlet() {
+  const box = $('padBox'); if (!box) return;
+  const want = st.padlet || '';
+  if (box.dataset.u === want) return;
+  box.dataset.u = want;
+  box.replaceChildren(want
+    ? el('a', { class: 'btn lian', href: want, target: '_blank', rel: 'noopener', style: 'margin-top:8px' }, '前往 Padlet')
+    : el('span', { class: 'small muted' }, '老師還沒給 Padlet 連結，等一下這裡會出現按鈕。'));
+}
+
+// ---------- 花箋圖卡（canvas 1080×1440） ----------
+let cardData = null;
+const imgCache = {};
+function loadImg(src) {
+  return imgCache[src] || (imgCache[src] = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; }));
+}
+const SANS = '"GenSeki", "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif';
+const SERIF = '"Songti TC", "STSong", "Noto Serif TC", "PMingLiU", serif';
+
+function wrapText(ctx, text, maxW) {
+  const lines = []; let cur = '';
+  for (const ch of text) { if (ctx.measureText(cur + ch).width > maxW && cur) { lines.push(cur); cur = ch; } else cur += ch; }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+async function drawCard() {
+  const W = 1080, H = 1440, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const d = cardData, hex = f => GAME_FLOWER[f].hex;
+  try { await document.fonts.load('700 40px GenSeki'); } catch {}
+  // 紙底
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#f8f3e7'); g.addColorStop(1, '#efe6d2');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.globalAlpha = .05; for (let i = 0; i < 900; i++) { x.fillStyle = i % 2 ? '#7a5a2a' : '#ffffff'; x.fillRect((i * 733) % W, (i * 389) % H, 2, 2); } x.globalAlpha = 1;
+  // 雙框
+  x.strokeStyle = '#a3343f'; x.lineWidth = 4; x.strokeRect(36, 36, W - 72, H - 72);
+  x.strokeStyle = 'rgba(176,128,42,.55)'; x.lineWidth = 2; x.strokeRect(52, 52, W - 104, H - 104);
+  // 標題
+  x.textAlign = 'center'; x.fillStyle = '#6b665c'; x.font = `500 30px ${SANS}`;
+  x.fillText('〈愛蓮說〉今天，你是哪朵花？', W / 2, 128);
+  x.fillStyle = '#2b2925'; x.font = `700 76px ${SANS}`;
+  x.fillText(`${st.me.seat} 號的三花箋`, W / 2, 222);
+  // 三朵花
+  const imgs = await Promise.all(F3.map(f => loadImg(flowerImg(f))));
+  const cx = [W / 2 - 300, W / 2, W / 2 + 300], cy = 420, r = 118;
+  F3.forEach((f, i) => {
+    const n = d.S.counts[f];
+    x.save(); x.beginPath(); x.arc(cx[i], cy, r, 0, Math.PI * 2); x.closePath(); x.clip();
+    x.fillStyle = '#fbf9f3'; x.fillRect(cx[i] - r, cy - r, r * 2, r * 2);
+    if (imgs[i]) { x.globalAlpha = n ? 1 : .3; x.drawImage(imgs[i], cx[i] - r, cy - r, r * 2, r * 2); x.globalAlpha = 1; }
+    x.restore();
+    x.beginPath(); x.arc(cx[i], cy, r, 0, Math.PI * 2); x.strokeStyle = n ? hex(f) : '#cfc7b4'; x.lineWidth = 8; x.stroke();
+    x.fillStyle = n ? hex(f) : '#a9a394'; x.font = `800 64px ${SANS}`; x.fillText(String(n), cx[i] - 18, cy + r + 78);
+    x.font = `700 34px ${SANS}`; x.textAlign = 'left'; x.fillText(GAME_FLOWER[f].name, cx[i] + 8, cy + r + 76); x.textAlign = 'center';
+  });
+  // 比例條
+  const bx = 150, bw = W - 300, by = 664, bh = 26, tot = Math.max(1, d.S.answered);
+  x.fillStyle = 'rgba(43,41,37,.08)'; roundRect(x, bx, by, bw, bh, 13); x.fill();
+  x.save(); roundRect(x, bx, by, bw, bh, 13); x.clip();
+  let px = bx; F3.forEach(f => { const w = bw * d.S.counts[f] / tot; x.fillStyle = hex(f); x.fillRect(px, by, w, bh); px += w; });
+  x.restore();
+  // 一句話
+  x.fillStyle = '#2b2925'; x.font = `500 32px ${SANS}`;
+  const say = d.top ? `最常選的是${GAME_FLOWER[d.top].long}：${GAME_FLOWER[d.top].mean}` : '這一局沒有作答';
+  x.fillText(say, W / 2, 748);
+  // 仿寫句（大字）
+  x.fillStyle = '#a3343f'; x.fillRect(W / 2 - 60, 776, 120, 4);
+  // 仿寫句：一行放不下就縮字、平均拆成兩到三行
+  const text = d.sentence + '。', maxW = W - 220;
+  let fs = 76, lines;
+  for (;;) {
+    x.font = `700 ${fs}px ${SERIF}`;
+    const n = Math.ceil(x.measureText(text).width / maxW);
+    const per = Math.ceil([...text].length / n);
+    lines = []; const ch = [...text]; for (let i = 0; i < ch.length; i += per) lines.push(ch.slice(i, i + per).join(''));
+    if (lines.length <= 2 || fs <= 54) break;
+    fs -= 6;
+  }
+  x.fillStyle = '#2b2925';
+  const lh = fs * 1.3, blockTop = 872, ly0 = blockTop + (lines.length === 1 ? lh * .55 : 0);
+  let ly = ly0;
+  for (const l of lines) { x.fillText(l, W / 2, ly); ly += lh; }
+  if (d.because && d.top) {
+    x.fillStyle = '#6b665c'; x.font = `500 32px ${SANS}`;
+    const bl = wrapText(x, `因為我常常${d.because}`, W - 240);
+    ly += 14;
+    for (const l of bl.slice(0, 2)) { x.fillText(l, W / 2, ly); ly += 46; }
+  }
+  // 點綴與猜中
+  x.font = `500 28px ${SANS}`; x.fillStyle = '#3b7a6b';
+  x.fillText(d.bq.fillers.join('　'), W / 2, 1222);
+  x.fillStyle = '#6b665c'; x.fillText(`猜中全班多數 ${d.S.hits} / ${st.deck.length} 題`, W / 2, 1270);
+  // 頁尾印章
+  x.fillStyle = '#a3343f'; roundRect(x, W / 2 - 46, 1300, 92, 66, 8); x.fill();
+  x.fillStyle = '#fff'; x.font = `700 30px ${SANS}`; x.fillText('三花', W / 2, 1344);
+  return c;
+}
+function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+async function cardUrl() { return (await drawCard()).toDataURL('image/png'); }
+
+async function saveCard(btn) {
+  const c = await drawCard();
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const file = new File([blob], `三花箋_${st.me.seat}號.png`, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  // iPad 不支援分享時：顯示大圖讓學生長按存；電腦則直接下載
+  const url = c.toDataURL('image/png');
+  if (!/iPad|iPhone|Macintosh/.test(navigator.userAgent) || !('ontouchend' in document)) {
+    const a = el('a', { href: url, download: file.name }); document.body.append(a); a.click(); a.remove();
+  }
+  $('sheetImg').src = url; $('sheet').hidden = false;
+}
+$('sheetClose').addEventListener('click', () => { $('sheet').hidden = true; });
+
+async function copy(text, btn, label) {
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch {
+    const t = el('textarea', { style: 'position:fixed;top:0;left:0;opacity:0' }); t.value = text; document.body.append(t); t.select();
+    try { ok = document.execCommand('copy'); } catch {} t.remove();
+  }
+  btn.textContent = ok ? '已複製 ✓' : '請長按文字自己複製';
+  btn.classList.remove('copied'); void btn.offsetWidth; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = label; }, 1800);
+}
+
+// ---------- 輪詢 ----------
+async function poll() {
+  clearTimeout(timer);
+  if (!code) return;
+  try {
+    st = await api(`/api/game/${code}?device=${dev}`);
+    setErr('');
+    store('game_code', code);
+    if (!st.me && st.stage !== 'end') renderSeat();
+    else if (st.stage === 'lobby') renderLobby();
+    else if (st.stage === 'q') { if (!st.me) renderSeat(); else renderQ(); }
+    else if (st.stage === 'reveal') renderReveal();
+    else renderEnd();
+  } catch (e) {
+    if (e.code === 'no_game') { code = ''; history.replaceState(null, '', location.pathname); return renderCode(e.message); }
+    setErr(e.message);
+  }
+  if (!(st && st.stage === 'end' && st.padlet)) timer = setTimeout(poll, document.hidden ? 8000 : 3000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+function start() { view = ''; poll(); }
+if (code) start(); else renderCode();
+</script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今天，你是哪朵花？ 老師版</title>
+<meta name="description" content="〈愛蓮說〉情境遊戲老師控制台：開一局、投影情境、全班答完一起揭曉，最後學生做三花箋與 AI 花束、貼到 Padlet 互評。">
+<link rel="stylesheet" href="../assets/style.css?v=20261120b">
+<link rel="stylesheet" href="game.css?v=20261120b">
+<script src="../assets/config.js"></script>
+</head>
+<body class="g-body">
+<main class="g-wrap" id="main">
+  <div id="app"></div>
+  <div class="err" id="err" role="alert"></div>
+</main>
+<div class="qr-full" id="qrfull" role="dialog" aria-label="放大的 QR code">
+  <div><div class="qr" id="qrbig"></div><div class="bigcode" id="qrbigcode"></div><p>點一下關閉</p></div>
+</div>
+
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js?v=20261120b"></script>
+<script src="scenes.js?v=20261120b"></script>
+<script>
+const $ = id => document.getElementById(id);
+const app = $('app');
+const GIMG = new URL('img/', location.href).href;
+const sceneImg = id => GIMG + 'scene_' + id + '.webp';
+const flowerImg = f => GIMG + 'flower_' + f + '.webp';
+const F3 = ['lian', 'ju', 'mudan'];
+const DEFAULT_DECK = ['s01', 's02', 's03', 's04', 's06', 's07', 's08', 's09'];
+
+let code = (new URLSearchParams(location.search).get('g') || '').replace(/\D/g, '').slice(0, 6);
+let key = '', d = null, view = '', timer = null, qStart = 0, showWait = false, tick = null;
+
+function setErr(m) { $('err').textContent = m || ''; }
+function games() { try { return JSON.parse(store('flower_games') || '[]'); } catch { return []; } }
+function saveGame(r) { const list = games().filter(x => x.code !== r.code); list.unshift(r); store('flower_games', JSON.stringify(list.slice(0, 30))); }
+const playUrl = c => new URL('play/?c=' + c, location.href).href;
+const ctrlUrl = () => new URL('?g=' + code + '#key=' + key, location.href).href;
+const sum3 = c => (c.ju || 0) + (c.mudan || 0) + (c.lian || 0);
+
+function brand(right) {
+  return el('div', { class: 'g-head' },
+    el('div', { class: 'g-brand' },
+      el('div', { class: 'trio' }, ...F3.map(f => el('img', { src: flowerImg(f), alt: '', style: `--c:${GAME_FLOWER[f].color}` }))),
+      el('div', {}, el('b', {}, '今天，你是哪朵花？'), el('small', {}, `〈愛蓮說〉情境遊戲・老師版${d && d.label ? '・' + d.label : ''}`))),
+    right || null);
+}
+
+// ---------- 開一局 ----------
+function landing() {
+  $('main').classList.remove('wide');
+  const label = el('input', { type: 'text', maxlength: '20', placeholder: '例如：八年三班（可不填）', 'aria-label': '班級名稱' });
+  const padlet = el('input', { type: 'text', inputmode: 'url', placeholder: 'https://padlet.com/…（可以晚點再填）', 'aria-label': 'Padlet 網址' });
+  const shuffle = el('input', { type: 'checkbox', checked: true });
+  const pick = el('div', { class: 'deck-pick' }, ...SCENES.map(s => el('label', {},
+    el('input', { type: 'checkbox', value: s.id, checked: DEFAULT_DECK.includes(s.id) }),
+    el('img', { src: sceneImg(s.id), alt: '' }), el('span', {}, s.title))));
+  const count = el('span', { class: 'chip' });
+  const upd = () => { const n = pick.querySelectorAll('input:checked').length; count.textContent = `已選 ${n} 題・約 ${Math.round(n * 1.5)} 分鐘`; };
+  pick.addEventListener('change', upd); upd();
+  const go = el('button', { class: 'btn block mudan', type: 'button' }, '開一局');
+  go.addEventListener('click', async () => {
+    let deck = [...pick.querySelectorAll('input:checked')].map(i => i.value);
+    if (deck.length < 3) return setErr('至少選 3 題');
+    if (shuffle.checked) deck = deck.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+    go.disabled = true; setErr('');
+    try {
+      const r = await api('/api/game', { body: { label: label.value.trim(), padlet: padlet.value.trim(), deck } });
+      saveGame({ code: r.code, key: r.key, label: label.value.trim(), created: Date.now() });
+      code = r.code; key = r.key; history.replaceState(null, '', '?g=' + code); view = ''; poll();
+    } catch (e) { setErr(e.message); go.disabled = false; }
+  });
+  const list = games();
+  app.replaceChildren(brand(),
+    el('section', { class: 'paper' },
+      el('h1', { style: 'font-size:clamp(30px,5vw,42px);letter-spacing:.1em;margin:0 0 6px' }, '今天，你是哪朵花？'),
+      el('p', { style: 'margin:0' }, '每題一個 2026 年的情境、三種做法。學生用自己的 iPad 選「我會怎麼做」，再猜全班最多人選哪個。全班答完才一起揭曉：每個做法對應的是菊、牡丹還是蓮。最後學生做自己的三花箋和 AI 花束，貼到 Padlet 互評。'),
+      el('ul', { class: 'rules', style: 'margin-top:10px' },
+        el('li', {}, '選項上不寫花，學生是照想法選，不是猜哪朵花「對」。'),
+        el('li', {}, '三種做法都有好處，也都有要留意的地方，沒有標準答案。'),
+        el('li', {}, '學生只選座號，不填名字；投影上只顯示人數。'))),
+    el('section', { class: 'paper' },
+      el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '1'), '選題目', count),
+      pick,
+      el('label', { style: 'display:flex;gap:8px;align-items:center;margin-top:12px' }, shuffle, '打亂順序')),
+    el('section', { class: 'paper' },
+      el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '2'), '班級與 Padlet'),
+      el('label', { class: 'field-label' }, '班級名稱', label),
+      el('label', { class: 'field-label' }, '班上的 Padlet 網址（學生最後要貼上去）', padlet),
+      el('p', { class: 'fine' }, 'Padlet 要開「訪客可以發文、留言」，學生才能不用登入就貼文、用 Padlet 內建的 AI 生圖。')),
+    el('div', { class: 'send-row' }, go),
+    list.length ? el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, '之前開過的'),
+      el('div', { class: 'room-list' }, ...list.map(r => el('a', { class: 'room-row', href: '?g=' + r.code },
+        el('span', { class: 'rc' }, r.code), el('span', { class: 'rl' }, r.label || '（沒有名稱）'),
+        el('span', { class: 'rd' }, new Date(r.created).toLocaleDateString('zh-TW')), el('span', { class: 'tl-go' }, '›'))))) : null);
+}
+
+// ---------- 控制台 ----------
+async function act(action, extra) {
+  setErr('');
+  try { await api(`/api/game/${code}/advance`, { body: { key, action, ...extra } }); await poll(); }
+  catch (e) { setErr(e.message); poll(); }
+}
+
+function bigQr() {
+  $('qrbig').replaceChildren(qrImg(playUrl(code), 12)); $('qrbigcode').textContent = code; $('qrfull').classList.add('show');
+}
+$('qrfull').addEventListener('click', () => $('qrfull').classList.remove('show'));
+
+function render() {
+  const k = d.stage + d.qi;
+  if (view !== k) {
+    view = k;
+    $('main').classList.add('wide');
+    if (d.stage === 'lobby') renderLobby();
+    else if (d.stage === 'q') { qStart = Date.now(); renderQ(); }
+    else if (d.stage === 'reveal') renderReveal();
+    else renderEnd();
+  }
+  update();
+}
+
+function renderLobby() {
+  const go = el('button', { class: 'btn mudan', type: 'button' }, '開始第 1 題');
+  go.addEventListener('click', () => act('start'));
+  const qr = el('div', { class: 't-qr' }, qrImg(playUrl(code), 10)); qr.addEventListener('click', bigQr);
+  app.replaceChildren(brand(),
+    el('section', { class: 'paper' },
+      el('div', { class: 'lobby-stage' },
+        el('div', { style: 'text-align:center' }, qr, el('div', { class: 't-code', style: 'font-size:64px' }, code),
+          el('div', { class: 'muted', style: 'overflow-wrap:anywhere' }, playUrl(code).replace(/^https?:\/\//, ''))),
+        el('div', {},
+          el('h1', { style: 'font-size:clamp(34px,4.6vw,54px);letter-spacing:.1em;margin:0' }, '今天，你是哪朵花？'),
+          el('p', { style: 'font-size:22px;margin:8px 0 0' }, '用 iPad 掃 QR，或打開網址輸入代號，選你的座號。'),
+          el('div', { class: 't-count', style: 'margin-top:18px' }, el('span', { id: 'tJoined' }, '0'), el('small', {}, `人已加入・共 ${d.deck.length} 題`)),
+          el('div', { class: 'seat-wall', id: 'seatWall' }),
+          el('div', { class: 't-actions', style: 'max-width:420px;margin-top:20px' }, go),
+          el('p', { class: 'key-hint' }, '學生都進來了再開始；中途加入的也可以直接作答。')))));
+}
+
+function renderQ() {
+  const s = SCENE[d.deck[d.qi]];
+  const reveal = el('button', { class: 'btn ghost', type: 'button' }, '不等了，直接揭曉');
+  reveal.addEventListener('click', () => act('reveal'));
+  const waitBtn = el('button', { class: 'btn ghost small', type: 'button' }, showWait ? '藏起座號' : '看還沒答的座號');
+  waitBtn.addEventListener('click', () => { showWait = !showWait; waitBtn.textContent = showWait ? '藏起座號' : '看還沒答的座號'; update(); });
+  app.replaceChildren(brand(dotsT()),
+    el('div', { class: 't-grid' },
+      el('div', {},
+        el('article', { class: 'paper scene' },
+          el('figure', { class: 'scene-art' }, el('img', { src: sceneImg(s.id), alt: '' }), el('span', { class: 'qno' }, `情境 ${d.qi + 1}`)),
+          el('div', { class: 'scene-body' }, el('h1', {}, s.title), el('p', { style: 'font-size:clamp(20px,2.2vw,26px)' }, s.scene))),
+        el('div', { class: 't-opts' }, ...s.opts.map((o, i) => el('div', { class: 't-opt' }, el('span', { class: 'lt' }, LETTERS[i]), el('span', {}, o.text)))),
+        el('p', { class: 'muted', style: 'font-size:19px;margin-top:14px' }, '① 選你真的會怎麼做　② 猜全班最多人選哪個。全班都答完就自動揭曉。')),
+      el('aside', { class: 't-side' },
+        el('div', { class: 'paper' },
+          el('div', { class: 'small muted' }, '已作答'),
+          el('div', { class: 't-count' }, el('span', { id: 'tAns' }, '0'), el('small', { id: 'tOf' }, '/ 0')),
+          el('div', { class: 'progress' }, el('i', { id: 'tBar' })),
+          el('div', { class: 'timer', id: 'tTimer' }, '0:00'),
+          el('div', { class: 'waiting', id: 'tWait' }),
+          el('div', { class: 't-actions', style: 'margin-top:14px' }, reveal, waitBtn)),
+        joinMini())));
+  clearInterval(tick);
+  tick = setInterval(() => { const t = Math.floor((Date.now() - qStart) / 1000); const e = $('tTimer'); if (e) e.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; }, 500);
+}
+
+function joinMini() {
+  const qr = el('div', { class: 't-qr', style: 'max-width:140px' }, qrImg(playUrl(code), 4)); qr.addEventListener('click', bigQr);
+  return el('div', { class: 'paper', style: 'text-align:center' }, el('div', { class: 'small muted' }, '還沒加入的掃這裡'), qr, el('div', { class: 't-code', style: 'font-size:30px' }, code),
+    el('div', { class: 'small muted' }, el('span', { id: 'tJoined' }, '0'), ' 人已加入'));
+}
+
+function dotsT() {
+  const n = d.deck.length, box = el('div', { class: 'dots' });
+  for (let i = 0; i < n; i++) box.append(el('i', { class: d.stage === 'end' || i < d.qi ? 'done' : i === d.qi ? 'now' : '' }));
+  box.append(el('span', {}, d.stage === 'end' ? `共 ${n} 題・完成` : `第 ${d.qi + 1} / ${n} 題`));
+  return box;
+}
+
+function renderReveal() {
+  clearInterval(tick);
+  const s = SCENE[d.deck[d.qi]], res = d.per[d.qi], t = sum3(res), top = Math.max(res.ju, res.mudan, res.lian);
+  const last = d.qi + 1 >= d.deck.length;
+  const next = el('button', { class: 'btn mudan', type: 'button' }, last ? '打開花箋（結束）' : '下一題');
+  next.addEventListener('click', () => act('next'));
+  const reopen = el('button', { class: 'btn ghost small', type: 'button' }, '重開這一題（還有人沒答）');
+  reopen.addEventListener('click', () => act('reopen'));
+  const cards = s.opts.map((o, i) => {
+    const F = GAME_FLOWER[o.f], n = res[o.f] || 0, fill = el('div', { class: 'fill' });
+    const c = el('div', { class: `rv c-${o.f}`, style: 'position:relative' },
+      top > 0 && n === top ? el('span', { class: 'tag-top' }, '全班最多') : null,
+      el('div', { class: 'rv-in' },
+        el('div', { class: 'rv-face rv-front' }, el('div', { class: 'lt' }, LETTERS[i]), el('div', { style: 'font-size:21px;font-weight:700' }, o.text)),
+        el('div', { class: 'rv-face rv-back' },
+          el('div', { class: 'rv-top' }, el('img', { src: flowerImg(o.f), alt: '' }), el('div', { class: 'fl' }, el('b', {}, `${LETTERS[i]} 是${F.name}`), `${F.who}・花之${F.tag}`)),
+          el('div', { class: 'rv-text', style: 'font-size:20px' }, el('span', { class: 'lt' }, LETTERS[i]), o.text),
+          el('div', { class: 'rv-bar' }, el('div', { class: 'track' }, fill), el('span', { class: 'num', style: 'font-size:22px' }, `${n} 人・${pct(n, t)}%`)),
+          el('div', { class: 'rv-quote', style: 'font-size:19px' }, `「${o.q}」`),
+          el('div', { class: 'rv-gc', style: 'font-size:17px' }, el('span', { class: 'g' }, o.good), el('span', { class: 'c' }, o.care)))));
+    setTimeout(() => { c.classList.add('flip'); setTimeout(() => { fill.style.width = pct(n, t) + '%'; }, 500); }, 300 + i * 600);
+    return c;
+  });
+  const answered = d.answered[d.qi] || 0;
+  app.replaceChildren(brand(dotsT()),
+    el('h1', { style: 'font-size:clamp(30px,3.6vw,46px);letter-spacing:.08em;margin:4px 0 14px' }, `揭曉：${s.title}`),
+    el('div', { class: 'rv-grid' }, ...cards),
+    el('div', { class: 'two', style: 'margin-top:16px;align-items:start' },
+      el('div', { class: 'talk', style: 'margin:0;font-size:24px' }, el('small', {}, '想一想・請兩三位同學說說'), s.talk),
+      el('div', { class: 'paper', style: 'margin:0' },
+        el('div', { style: 'font-size:20px' }, `${answered} 人作答，`, el('b', { style: 'color:var(--ju);font-size:26px' }, String(d.guessOk[d.qi] || 0)), ' 人猜中全班多數'),
+        el('div', { class: 't-actions', style: 'margin-top:12px' }, next, reopen),
+        el('p', { class: 'key-hint' }, '鍵盤：空白鍵或 → 下一題'))));
+}
+
+function renderEnd() {
+  clearInterval(tick);
+  const tot = d.totals, T = sum3(tot);
+  const rows = d.deck.map((id, i) => {
+    const r = d.per[i], t = sum3(r);
+    return el('div', { class: 'sum-row' }, el('b', {}, `${i + 1}. ${SCENE[id].title}`),
+      el('div', { class: 'ratio' }, ...F3.filter(f => r[f]).map(f => el('i', { style: `--c:${GAME_FLOWER[f].color};width:${pct(r[f], t)}%` }, `${GAME_FLOWER[f].name} ${r[f]}`))));
+  });
+  const pad = el('input', { type: 'text', inputmode: 'url', value: d.padlet || '', placeholder: 'https://padlet.com/…', 'aria-label': 'Padlet 網址' });
+  const padSave = el('button', { class: 'btn small', type: 'button' }, d.padlet ? '更新' : '送出給學生');
+  padSave.addEventListener('click', () => act('padlet', { padlet: pad.value.trim() }));
+  const padQr = d.padlet ? el('div', { class: 't-qr', style: 'max-width:200px' }, qrImg(d.padlet, 5)) : el('p', { class: 'muted' }, '填了 Padlet 網址，學生 iPad 上就會出現「前往 Padlet」按鈕。');
+  app.replaceChildren(brand(dotsT()),
+    el('h1', { style: 'font-size:clamp(30px,3.6vw,46px);letter-spacing:.08em;margin:4px 0 14px' }, '我們班的花譜'),
+    el('div', { class: 'paper big-ratio' },
+      el('div', { class: 'pu' }, ...F3.map(f => el('figure', { style: `--c:${GAME_FLOWER[f].color}` }, el('img', { src: flowerImg(f), alt: '' }),
+        el('div', { class: 'cnt' }, `${pct(tot[f], T)}%`, el('small', {}, `${GAME_FLOWER[f].long}・${tot[f]} 次`))))),
+      el('div', { class: 'ratio' }, ...F3.filter(f => tot[f]).map(f => el('i', { style: `--c:${GAME_FLOWER[f].color};width:${pct(tot[f], T)}%` }, GAME_FLOWER[f].name))),
+      el('p', { class: 'fine', style: 'font-size:17px' }, '全班每一題的選擇加起來。同一個人在不同情境，常常選不同的花。')),
+    el('div', { class: 'two' },
+      el('div', { class: 'paper', style: 'margin:0' }, el('h2', { class: 'sec-title' }, '每一題'), ...rows),
+      el('div', { class: 'paper', style: 'margin:0' },
+        el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '貼'), '學生現在做的事'),
+        el('ol', { class: 'how' },
+          el('li', {}, el('div', {}, el('b', {}, '寫一句仿寫'), '予獨愛＿＿之＿＿＿＿')),
+          el('li', {}, el('div', {}, el('b', {}, '挑畫風，存下三花箋圖卡'))),
+          el('li', {}, el('div', {}, el('b', {}, '複製 AI 花束提示詞'), '花的數量照自己的花譜')),
+          el('li', {}, el('div', {}, el('b', {}, '在 Padlet 發文'), '附件用 Padlet 的 AI 生圖貼上提示詞；花箋圖卡貼在自己貼文的留言'))),
+        el('div', { style: 'display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:16px' }, padQr,
+          el('div', { style: 'flex:1;min-width:220px;display:grid;gap:8px' }, el('span', { class: 'small muted' }, '班上的 Padlet'), pad, padSave)))),
+    el('div', { class: 'paper', style: 'margin-top:16px' },
+      el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '評'), '互評格式', el('small', {}, '每人至少回應 2 位同學')),
+      el('div', { class: 'review', style: 'font-size:20px' },
+        el('div', { class: 'c-ju' }, el('b', {}, '【我看到】'), '你的花束裡最多的是＿＿，你的句子寫＿＿。'),
+        el('div', { class: 'c-lian' }, el('b', {}, '【我欣賞】'), '我喜歡＿＿，因為＿＿。（說出是哪一朵花或哪幾個字）'),
+        el('div', { class: 'c-mudan' }, el('b', {}, '【我好奇】'), '為什麼你會＿＿？（問一個真的想知道的問題）')),
+      el('ul', { class: 'rules' }, el('li', {}, '不評畫得美不美，不說哪種花比較好。'), el('li', {}, '被留言的人，可以回一句「謝謝，其實是因為＿＿」。'))));
+}
+
+function update() {
+  document.querySelectorAll('#tJoined').forEach(e => { if (e.firstChild && e.firstChild.nodeType === 3) e.firstChild.textContent = String(d.joined); else e.textContent = String(d.joined); });
+  const wall = $('seatWall');
+  if (wall && wall.dataset.k !== d.seats.join(',')) { wall.dataset.k = d.seats.join(','); wall.replaceChildren(...[...d.seats].sort((a, b) => a - b).map(s => el('span', {}, String(s)))); }
+  if (d.stage === 'q') {
+    const a = d.answered[d.qi] || 0;
+    if ($('tAns')) { $('tAns').textContent = a; $('tOf').textContent = `/ ${d.joined}`; $('tBar').style.width = pct(a, d.joined) + '%'; }
+    const w = $('tWait');
+    if (w) w.replaceChildren(...(showWait ? (d.waiting.length ? d.waiting.map(s => el('span', {}, `${s} 號`)) : [el('span', {}, '全部答完')]) : []));
+  }
+}
+
+async function poll() {
+  clearTimeout(timer);
+  try {
+    d = await api(`/api/game/${code}/teacher?key=${encodeURIComponent(key)}`);
+    setErr(''); render();
+  } catch (e) { setErr(e.message); }
+  timer = setTimeout(poll, document.hidden ? 8000 : 2000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && code && key) poll(); });
+document.addEventListener('keydown', e => {
+  if (!d || e.target.closest('input,textarea')) return;
+  if ((e.key === ' ' || e.key === 'ArrowRight') && d.stage === 'reveal') { e.preventDefault(); act('next'); }
+});
+
+// 控制網址 #key=… → 存進這台電腦，再從網址列拿掉（投影時學生看不到）
+const hk = new URLSearchParams(location.hash.slice(1)).get('key');
+if (code && hk) { saveGame({ code, key: hk, label: '', created: Date.now() }); history.replaceState(null, '', '?g=' + code); }
+if (code) {
+  key = (games().find(r => r.code === code) || {}).key || '';
+  if (!key) app.replaceChildren(brand(), el('div', { class: 'paper' }, '這台電腦沒有這一局的控制權。請用開局的那台電腦，或用「複製控制網址」開啟。', el('p', {}, el('a', { href: './' }, '開新的一局'))));
+  else poll();
+} else landing();
+</script>
+</body>
+</html>

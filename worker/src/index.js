@@ -117,6 +117,16 @@ async function route(req, env) {
     if (action === 'advance' && req.method === 'POST') return advance(req, env, code);
     if (action === 'hide' && req.method === 'POST') return hideReason(req, env, code);
   }
+  if (p === '/api/game' && req.method === 'POST') return createGame(req, env);
+  const g = p.match(/^\/api\/game\/(\d{6})(?:\/(join|answer|teacher|advance))?$/);
+  if (g) {
+    const [, code, action] = g;
+    if (!action && req.method === 'GET') return gameState(url, env, code);
+    if (action === 'join' && req.method === 'POST') return gameJoin(req, env, code);
+    if (action === 'answer' && req.method === 'POST') return gameAnswer(req, env, code);
+    if (action === 'teacher' && req.method === 'GET') return gameTeacher(url, env, code);
+    if (action === 'advance' && req.method === 'POST') return gameAdvance(req, env, code);
+  }
   if (p === '' || p === '/api/health') return json({ ok: true });
   throw new HttpError(404, 'not_found', '找不到這個網址');
 }
@@ -294,4 +304,199 @@ async function hideReason(req, env, code) {
   await env.DB.prepare('UPDATE room_votes SET hidden = ?1 WHERE code = ?2 AND round = 2 AND rowid = ?3')
     .bind(b.hidden ? 1 : 0, code, Number(b.id)).run();
   return json({ ok: true });
+}
+
+// ---------- 遊戲「今天，你是哪朵花？」 ----------
+// 題目內容在前端 docs/game/scenes.js；這裡只認題目代號
+const GAME_IDS = ['s01', 's02', 's03', 's04', 's05', 's06', 's07', 's08', 's09', 's10'];
+const SEAT_MAX = 60;
+
+async function getGame(env, code) {
+  const game = await env.DB.prepare('SELECT * FROM games WHERE code = ?1').bind(code).first();
+  const days = Number(env.ROOM_DAYS || 30);
+  if (!game || Date.now() - game.created_at > days * 86400000) throw new HttpError(404, 'no_game', '找不到這個遊戲（代號錯了，或已超過 30 天關閉）');
+  game.deck = JSON.parse(game.deck);
+  return game;
+}
+
+async function requireGameTeacher(env, code, key) {
+  const game = await getGame(env, code);
+  if (!key || (await sha256(key)) !== game.key_hash) throw new HttpError(403, 'not_teacher', '老師控制網址不正確');
+  return game;
+}
+
+function cleanPadlet(u) {
+  u = String(u || '').trim();
+  if (!u) return '';
+  let x;
+  try { x = new URL(u); } catch { throw new HttpError(400, 'bad_padlet', 'Padlet 網址格式不對，要用 https:// 開頭'); }
+  if (x.protocol !== 'https:') throw new HttpError(400, 'bad_padlet', 'Padlet 網址要用 https:// 開頭');
+  return x.href.slice(0, 300);
+}
+
+async function createGame(req, env) {
+  const b = await body(req);
+  const label = String(b.label || '').trim().slice(0, 20);
+  let deck = Array.isArray(b.deck) ? [...new Set(b.deck.filter(id => GAME_IDS.includes(id)))] : [];
+  if (deck.length < 3) throw new HttpError(400, 'bad_deck', '至少要選 3 題');
+  const padlet = cleanPadlet(b.padlet);
+  const ih = await ipHash(req, env);
+  await rateLimit(env, 'game:' + ih, Number(env.ROOMS_PER_HOUR || 20));
+  const key = randomKey();
+  const keyHash = await sha256(key);
+  const days = Number(env.ROOM_DAYS || 30);
+  for (let i = 0; i < 8; i++) {
+    const code = randomDigits(6);
+    const old = await env.DB.prepare('SELECT created_at FROM games WHERE code = ?1').bind(code).first();
+    if (old && Date.now() - old.created_at <= days * 86400000) continue;
+    if (old) {
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM game_answers WHERE code = ?1').bind(code),
+        env.DB.prepare('DELETE FROM game_players WHERE code = ?1').bind(code),
+        env.DB.prepare('DELETE FROM games WHERE code = ?1').bind(code),
+      ]);
+    }
+    await env.DB.prepare('INSERT INTO games (code, key_hash, label, deck, padlet, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
+      .bind(code, keyHash, label, JSON.stringify(deck), padlet, Date.now()).run();
+    return json({ ok: true, code, key });
+  }
+  throw new HttpError(503, 'busy', '遊戲代號用完了，請再按一次');
+}
+
+// 每一題三朵花各幾票、作答人數、多數是哪朵、猜中幾人
+async function gameTallies(env, game) {
+  const { results } = await env.DB.prepare('SELECT qi, device, choice, guess FROM game_answers WHERE code = ?1').bind(game.code).all();
+  const per = game.deck.map(() => ({ ju: 0, mudan: 0, lian: 0 }));
+  const answered = game.deck.map(() => 0);
+  const guessOk = game.deck.map(() => 0);
+  for (const r of results) if (per[r.qi]) { per[r.qi][r.choice]++; answered[r.qi]++; }
+  const majority = per.map(c => {
+    const m = Math.max(c.ju, c.mudan, c.lian);
+    return m ? CHOICES.filter(f => c[f] === m) : [];
+  });
+  for (const r of results) if (majority[r.qi] && majority[r.qi].includes(r.guess)) guessOk[r.qi]++;
+  const revealedUpTo = game.stage === 'end' ? game.deck.length - 1 : game.stage === 'reveal' ? game.qi : game.qi - 1;
+  return { per, answered, guessOk, majority, revealedUpTo, rows: results };
+}
+
+async function playerCount(env, code) {
+  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM game_players WHERE code = ?1').bind(code).first();
+  return r ? r.n : 0;
+}
+
+// 學生畫面輪詢（揭曉過的題目才給票數）
+async function gameState(url, env, code) {
+  const game = await getGame(env, code);
+  const device = url.searchParams.get('device');
+  const { results: players } = await env.DB.prepare('SELECT seat, device FROM game_players WHERE code = ?1').bind(code).all();
+  const t = await gameTallies(env, game);
+  const out = {
+    code, label: game.label, stage: game.stage, qi: game.qi, deck: game.deck,
+    joined: players.length, answered: game.qi >= 0 ? t.answered[game.qi] || 0 : 0,
+    seats: players.map(p => p.seat).sort((a, b) => a - b),
+    padlet: game.stage === 'end' ? game.padlet : '',
+    results: t.per.map((c, i) => (i <= t.revealedUpTo ? c : null)),
+    me: null,
+  };
+  if (device) {
+    checkDevice(device);
+    const p = players.find(r => r.device === device);
+    if (p) {
+      const answers = {};
+      for (const r of t.rows) if (r.device === device) answers[r.qi] = { choice: r.choice, guess: r.guess };
+      out.me = { seat: p.seat, answers };
+    }
+  }
+  return json(out);
+}
+
+async function gameJoin(req, env, code) {
+  const game = await getGame(env, code);
+  const b = await body(req);
+  const device = checkDevice(b.device);
+  const seat = Number(b.seat);
+  if (!Number.isInteger(seat) || seat < 1 || seat > SEAT_MAX) throw new HttpError(400, 'bad_seat', `座號要在 1 到 ${SEAT_MAX} 之間`);
+  if (game.stage === 'end') throw new HttpError(409, 'ended', '這一局已經結束了');
+  const taken = await env.DB.prepare('SELECT device FROM game_players WHERE code = ?1 AND seat = ?2').bind(code, seat).first();
+  if (taken && taken.device !== device) throw new HttpError(409, 'seat_taken', `${seat} 號已經有人選了，請確認你的座號`);
+  await env.DB.prepare(
+    `INSERT INTO game_players (code, device, seat, joined_at) VALUES (?1, ?2, ?3, ?4)
+     ON CONFLICT(code, device) DO UPDATE SET seat = excluded.seat`
+  ).bind(code, device, seat, Date.now()).run();
+  return json({ ok: true, seat });
+}
+
+async function gameAnswer(req, env, code) {
+  const game = await getGame(env, code);
+  const b = await body(req);
+  const device = checkDevice(b.device);
+  const choice = checkChoice(b.choice);
+  if (!CHOICES.includes(b.guess)) throw new HttpError(400, 'bad_guess', '還要猜一下全班最多人選哪個');
+  if (game.stage !== 'q') throw new HttpError(409, 'closed', '這一題已經截止了');
+  if (Number(b.qi) !== game.qi) throw new HttpError(409, 'wrong_q', '老師已經換題了，畫面會自動更新');
+  const p = await env.DB.prepare('SELECT seat FROM game_players WHERE code = ?1 AND device = ?2').bind(code, device).first();
+  if (!p) throw new HttpError(409, 'not_joined', '請先選座號加入');
+  await env.DB.prepare(
+    `INSERT INTO game_answers (code, qi, device, choice, guess, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+     ON CONFLICT(code, qi, device) DO UPDATE SET choice = excluded.choice, guess = excluded.guess`
+  ).bind(code, game.qi, device, choice, b.guess, Date.now()).run();
+  // 全部的人都答完 → 自動揭曉
+  const done = await env.DB.prepare('SELECT COUNT(*) AS n FROM game_answers WHERE code = ?1 AND qi = ?2').bind(code, game.qi).first();
+  const joined = await playerCount(env, code);
+  let revealed = false;
+  if (joined > 0 && done.n >= joined) {
+    const u = await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2").bind(code, game.qi).run();
+    revealed = u.meta.changes === 1;
+  }
+  return json({ ok: true, revealed });
+}
+
+// 老師畫面：誰還沒答（只給座號）、每題票數、猜中人數、全班花譜
+async function gameTeacher(url, env, code) {
+  const game = await requireGameTeacher(env, code, url.searchParams.get('key'));
+  const { results: players } = await env.DB.prepare('SELECT seat, device FROM game_players WHERE code = ?1 ORDER BY seat').bind(code).all();
+  const t = await gameTallies(env, game);
+  const answeredNow = new Set(t.rows.filter(r => r.qi === game.qi).map(r => r.device));
+  const totals = { ju: 0, mudan: 0, lian: 0 };
+  for (const r of t.rows) totals[r.choice]++;
+  return json({
+    code, label: game.label, stage: game.stage, qi: game.qi, deck: game.deck, padlet: game.padlet, created_at: game.created_at,
+    joined: players.length, seats: players.map(p => p.seat),
+    waiting: game.stage === 'q' ? players.filter(p => !answeredNow.has(p.device)).map(p => p.seat) : [],
+    answered: t.answered, per: t.per, guessOk: t.guessOk, majority: t.majority, totals,
+  });
+}
+
+async function gameAdvance(req, env, code) {
+  const b = await body(req);
+  const game = await requireGameTeacher(env, code, b.key);
+  if (b.action === 'padlet') {
+    const padlet = cleanPadlet(b.padlet);
+    await env.DB.prepare('UPDATE games SET padlet = ?1 WHERE code = ?2').bind(padlet, code).run();
+    return json({ ok: true, padlet });
+  }
+  const last = game.deck.length - 1;
+  let stage = game.stage, qi = game.qi;
+  if (b.action === 'start') {
+    if (stage !== 'lobby') throw new HttpError(409, 'bad_step', '遊戲已經開始了');
+    stage = 'q'; qi = 0;
+  } else if (b.action === 'reveal') {
+    if (stage !== 'q') throw new HttpError(409, 'bad_step', '現在不是作答時間');
+    stage = 'reveal';
+  } else if (b.action === 'reopen') {
+    if (stage !== 'reveal') throw new HttpError(409, 'bad_step', '只有揭曉後才能重開這一題');
+    stage = 'q';
+  } else if (b.action === 'next') {
+    if (stage !== 'reveal') throw new HttpError(409, 'bad_step', '先揭曉這一題');
+    if (qi >= last) stage = 'end'; else { stage = 'q'; qi++; }
+  } else if (b.action === 'end') {
+    stage = 'end';
+  } else {
+    throw new HttpError(400, 'bad_action', '不認得的動作');
+  }
+  // 用舊狀態當條件：兩個分頁同時按也只走一步
+  const u = await env.DB.prepare('UPDATE games SET stage = ?1, qi = ?2 WHERE code = ?3 AND stage = ?4 AND qi = ?5')
+    .bind(stage, qi, code, game.stage, game.qi).run();
+  if (u.meta.changes !== 1) throw new HttpError(409, 'raced', '畫面已經被更新，請再看一次');
+  return json({ ok: true, stage, qi });
 }
