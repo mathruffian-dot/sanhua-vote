@@ -88,8 +88,8 @@ button, .btn, a { touch-action: manipulation; -webkit-tap-highlight-color: trans
 .rv-quote::before { content: "課文　"; color: var(--ink-soft); font-weight: 400; font-size: 14px; letter-spacing: 0; }
 .rv-gc { display: grid; gap: 4px; font-size: 15px; line-height: 1.5; margin-top: 6px; }
 .rv-gc span::before { display: inline-block; min-width: 3.6em; font-weight: 700; }
-.rv-gc .g::before { content: "好處　"; color: var(--lian); }
-.rv-gc .c::before { content: "要留意"; color: var(--mudan); margin-right: .4em; }
+.rv-gc .g::before { content: "可能幫助"; color: var(--lian); margin-right: .4em; }
+.rv-gc .c::before { content: "可能代價"; color: var(--mudan); margin-right: .4em; }
 .tag-mine, .tag-top { position: absolute; top: -11px; right: 14px; z-index: 2; padding: 2px 12px; border-radius: 999px; font-size: 14px; font-weight: 800; color: #fff; }
 .tag-mine { background: var(--ink); }
 .tag-top { background: var(--ju); right: auto; left: 14px; }
@@ -109,7 +109,7 @@ button, .btn, a { touch-action: manipulation; -webkit-tap-highlight-color: trans
 .seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
 .seats button { min-height: 58px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; font-size: 21px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .seats button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.seats button:disabled { opacity: .3; cursor: not-allowed; text-decoration: line-through; }
+.seats button:disabled { background: color-mix(in srgb, var(--ink) 9%, var(--paper)); color: #8f897c; border-color: transparent; cursor: not-allowed; }
 .lobby-big { text-align: center; padding: 34px 18px; }
 .lobby-big .seatno { font-size: 84px; font-weight: 800; line-height: 1; color: var(--lian); font-variant-numeric: tabular-nums; }
 .lobby-big .seatno small { font-size: 28px; color: var(--ink-soft); margin-left: 6px; }
@@ -224,3 +224,68 @@ button, .btn, a { touch-action: manipulation; -webkit-tap-highlight-color: trans
 .big-ratio .ratio { height: 34px; }
 .big-ratio .ratio i { color: #fff; font-weight: 800; display: grid; place-items: center; font-size: 17px; }
 .key-hint { color: var(--ink-soft); font-size: 14px; }
+
+/* ===== 2026-11-20 美化第二輪 ===== */
+.lobby-art { margin: -12px -12px 18px; border-radius: 14px 14px 0 0; overflow: hidden; aspect-ratio: 16 / 7; }
+.lobby-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; display: block; }
+.seat-art { display: block; width: 100%; aspect-ratio: 16 / 5; object-fit: cover; object-position: center 45%; border-radius: 12px; margin: 0 0 14px; }
+@media (max-width: 520px) {
+  .g-body { font-size: 17px; }
+  .g-brand { min-width: 0; }
+  .g-brand b { font-size: 16px; letter-spacing: .04em; }
+  .g-brand .trio img { width: 30px; height: 30px; }
+  .paper { padding: 16px; border-radius: 16px; }
+  .paper.scene { padding: 0; }
+  .sec-title { flex-wrap: wrap; font-size: 19px; }
+  .sec-title small { flex-basis: 100%; margin-left: 42px; margin-top: -6px; }
+  .scene-body { padding: 0 16px 18px; }
+  .g-opt { grid-template-columns: 46px 1fr; font-size: 18px; padding: 12px 14px 12px 10px; }
+  .g-opt .lt { width: 46px; height: 46px; font-size: 22px; }
+  .seats { grid-template-columns: repeat(5, 1fr); }
+  .lobby-big .seatno { font-size: 72px; }
+}
+
+/* ===== 2026-11-20 依 Astra 審核修改 ===== */
+.c-ju { --ct: #7a561c; } .c-lian { --ct: #2e6256; } .c-mudan { --ct: #8e2b35; }
+.rv-top .fl b, .rv-quote, .pu .cnt, .ct { color: var(--ct, var(--c)); }
+.g-opt[aria-pressed="true"] { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, var(--card)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 14%, transparent); }
+.guess button { display: grid; place-items: center; gap: 2px; min-height: 76px; padding: 6px 4px; line-height: 1.2; }
+.guess button b { font-size: 26px; }
+.guess button small { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+.pickline { text-align: center; color: var(--ink-soft); font-weight: 700; margin: 14px 0 0; min-height: 1.6em; }
+.sent.changed { background: color-mix(in srgb, var(--ju) 12%, var(--card)); border-color: color-mix(in srgb, var(--ju) 45%, var(--line)); }
+.sent.changed b { color: #7a561c; }
+.g-body .btn.small { min-height: 48px; padding: 10px 16px; }
+.layer { margin: 16px 0; padding: 12px 16px; border-radius: 12px; background: var(--card); border: 1px dashed var(--line); font-size: 15px; }
+.layer p { margin: 4px 0; } .layer b { color: var(--ink); }
+@media (max-width: 520px) { .styles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .style-opt span { font-size: 15px; } }
+@media (min-width: 760px) { .seats { grid-template-columns: repeat(8, 1fr); } }
+
+/* 老師投影：字放大給後排看 */
+body.teacher .g-wrap.wide { max-width: 1728px; width: 94vw; }
+body.teacher .t-opt { min-height: 120px; font-size: 27px; }
+body.teacher .t-opt .lt { width: 62px; height: 62px; font-size: 30px; }
+body.teacher .rv-top img { width: 96px; height: 96px; }
+body.teacher .rv-top .fl { font-size: 19px; }
+body.teacher .rv-top .fl b { font-size: 36px; }
+body.teacher .rv-text { font-size: 25px; min-height: 3em; }
+body.teacher .rv-text .lt { width: 34px; height: 34px; font-size: 19px; }
+body.teacher .rv-bar .num { font-size: 26px; }
+body.teacher .rv-bar .track { height: 18px; }
+body.teacher .rv-quote { font-size: 24px; }
+body.teacher .rv-gc { font-size: 22px; }
+body.teacher .rv-front-t { font-size: 25px; font-weight: 700; }
+body.teacher .talk { font-size: 28px; }
+body.teacher .layer { font-size: 18px; }
+body.teacher .t-guess { font-size: 22px; } body.teacher .t-guess b { color: #7a561c; font-size: 30px; }
+@media (min-width: 1100px) {
+  body.teacher .t-scene { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: center; }
+  body.teacher .t-scene .scene-art { aspect-ratio: 16 / 10; }
+  body.teacher .t-scene .scene-art::after { background: linear-gradient(to right, transparent 70%, var(--card)); }
+  body.teacher .t-scene .scene-body { margin: 0; padding: 26px 30px; }
+  body.teacher .t-scene .scene-body h1 { font-size: 46px; }
+  body.teacher .t-scene .scene-body p { font-size: 30px; line-height: 1.6; }
+}
+body.teacher .lobby-stage { min-height: 68vh; align-content: center; }
+body.teacher .lobby-stage .t-qr img { max-width: 380px; }
+body.teacher .t-count { font-size: 80px; }

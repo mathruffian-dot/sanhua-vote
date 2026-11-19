@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="zh-Hant-TW">
+<html lang="zh-Hant-TW" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>今天，你是哪朵花？ 老師版</title>
 <meta name="description" content="〈愛蓮說〉情境遊戲老師控制台：開一局、投影情境、全班答完一起揭曉，最後學生做三花箋與 AI 花束、貼到 Padlet 互評。">
-<link rel="stylesheet" href="../assets/style.css?v=20261120f">
-<link rel="stylesheet" href="game.css?v=20261120f">
+<link rel="stylesheet" href="../assets/style.css?v=20261120h">
+<link rel="stylesheet" href="game.css?v=20261120h">
 <script src="../assets/config.js"></script>
 </head>
 <body class="g-body">
@@ -19,11 +19,12 @@
 </div>
 
 <script src="../assets/qrcode.js"></script>
-<script src="../assets/common.js?v=20261120f"></script>
-<script src="scenes.js?v=20261120e"></script>
+<script src="../assets/common.js?v=20261120h"></script>
+<script src="scenes.js?v=20261120h"></script>
 <script>
 const $ = id => document.getElementById(id);
 const app = $('app');
+const put = (...k) => app.replaceChildren(...k.filter(x => x != null));   // 略過 null，不會印出「null」
 const GIMG = new URL('img/', location.href).href;
 const sceneImg = id => GIMG + 'scene_' + id + '.webp';
 const flowerImg = f => GIMG + 'flower_' + f + '.webp';
@@ -31,7 +32,7 @@ const F3 = ['lian', 'ju', 'mudan'];
 const DEFAULT_DECK = ['s01', 's02', 's03', 's04', 's06', 's07', 's08', 's09'];
 
 let code = (new URLSearchParams(location.search).get('g') || '').replace(/\D/g, '').slice(0, 6);
-let key = '', d = null, view = '', timer = null, qStart = 0, showWait = false, tick = null;
+let key = '', d = null, view = '', timer = null, qStart = 0, showWait = false, tick = null, acting = false;
 
 function setErr(m) { $('err').textContent = m || ''; }
 function games() { try { return JSON.parse(store('flower_games') || '[]'); } catch { return []; } }
@@ -73,7 +74,7 @@ function landing() {
     } catch (e) { setErr(e.message); go.disabled = false; }
   });
   const list = games();
-  app.replaceChildren(brand(),
+  put(brand(),
     el('section', { class: 'paper' },
       el('h1', { style: 'font-size:clamp(30px,5vw,42px);letter-spacing:.1em;margin:0 0 6px' }, '今天，你是哪朵花？'),
       el('p', { style: 'margin:0' }, '每題一個 2026 年的情境、三種做法。學生用自己的 iPad 選「我會怎麼做」，再猜全班最多人選哪個。全班答完才一起揭曉：每個做法對應的是菊、牡丹還是蓮。最後學生做自己的三花箋和 AI 花束，貼到 Padlet 互評。'),
@@ -100,9 +101,11 @@ function landing() {
 
 // ---------- 控制台 ----------
 async function act(action, extra) {
-  setErr('');
+  if (acting) return;   // 按一次走一步：請求還沒回來前不收第二下
+  acting = true; setErr('');
   try { await api(`/api/game/${code}/advance`, { body: { key, action, ...extra } }); await poll(); }
   catch (e) { setErr(e.message); poll(); }
+  finally { acting = false; }
 }
 
 function bigQr() {
@@ -114,7 +117,7 @@ function render() {
   const k = d.stage + d.qi + (d.stage === 'end' ? '|' + d.padlet : '');
   if (view !== k) {
     view = k;
-    $('main').classList.add('wide');
+    $('main').classList.add('wide'); document.body.classList.add('teacher');
     if (d.stage === 'lobby') renderLobby();
     else if (d.stage === 'q') { qStart = Date.now(); renderQ(); }
     else if (d.stage === 'reveal') renderReveal();
@@ -127,7 +130,7 @@ function renderLobby() {
   const go = el('button', { class: 'btn mudan', type: 'button' }, '開始第 1 題');
   go.addEventListener('click', () => act('start'));
   const qr = el('div', { class: 't-qr' }, qrImg(playUrl(code), 10)); qr.addEventListener('click', bigQr);
-  app.replaceChildren(brand(),
+  put(brand(),
     el('section', { class: 'paper' },
       el('div', { class: 'lobby-stage' },
         el('div', { style: 'text-align:center' }, qr, el('div', { class: 't-code', style: 'font-size:64px' }, code),
@@ -147,12 +150,12 @@ function renderQ() {
   reveal.addEventListener('click', () => act('reveal'));
   const waitBtn = el('button', { class: 'btn ghost small', type: 'button' }, showWait ? '藏起座號' : '看還沒答的座號');
   waitBtn.addEventListener('click', () => { showWait = !showWait; waitBtn.textContent = showWait ? '藏起座號' : '看還沒答的座號'; update(); });
-  app.replaceChildren(brand(dotsT()),
+  put(brand(dotsT()),
     el('div', { class: 't-grid' },
       el('div', {},
-        el('article', { class: 'paper scene' },
+        el('article', { class: 'paper scene t-scene' },
           el('figure', { class: 'scene-art' }, el('img', { src: sceneImg(s.id), alt: '' }), el('span', { class: 'qno' }, `情境 ${d.qi + 1}`)),
-          el('div', { class: 'scene-body' }, el('h1', {}, s.title), el('p', { style: 'font-size:clamp(20px,2.2vw,26px)' }, s.scene))),
+          el('div', { class: 'scene-body' }, el('h1', {}, s.title), el('p', {}, s.scene))),
         el('div', { class: 't-opts' }, ...s.opts.map((o, i) => el('div', { class: 't-opt' }, el('span', { class: 'lt' }, LETTERS[i]), el('span', {}, o.text)))),
         el('p', { class: 'muted', style: 'font-size:19px;margin-top:14px' }, '① 選你真的會怎麼做　② 猜全班最多人選哪個。全班都答完就自動揭曉。')),
       el('aside', { class: 't-side' },
@@ -192,26 +195,27 @@ function renderReveal() {
   const cards = s.opts.map((o, i) => {
     const F = GAME_FLOWER[o.f], n = res[o.f] || 0, fill = el('div', { class: 'fill' });
     const c = el('div', { class: `rv c-${o.f}`, style: 'position:relative' },
-      top > 0 && n === top ? el('span', { class: 'tag-top' }, '全班最多') : null,
+      top > 0 && n === top ? el('span', { class: 'tag-top' }, F3.filter(f => res[f] === top).length > 1 ? '並列最多' : '全班最多') : null,
       el('div', { class: 'rv-in' },
-        el('div', { class: 'rv-face rv-front' }, el('div', { class: 'lt' }, LETTERS[i]), el('div', { style: 'font-size:21px;font-weight:700' }, o.text)),
+        el('div', { class: 'rv-face rv-front' }, el('div', { class: 'lt' }, LETTERS[i]), el('div', { class: 'rv-front-t' }, o.text)),
         el('div', { class: 'rv-face rv-back' },
-          el('div', { class: 'rv-top' }, el('img', { src: flowerImg(o.f), alt: '' }), el('div', { class: 'fl' }, el('b', {}, `${LETTERS[i]} 是${F.name}`), `${F.who}・花之${F.tag}`)),
-          el('div', { class: 'rv-text', style: 'font-size:20px' }, el('span', { class: 'lt' }, LETTERS[i]), o.text),
-          el('div', { class: 'rv-bar' }, el('div', { class: 'track' }, fill), el('span', { class: 'num', style: 'font-size:22px' }, `${n} 人・${pct(n, t)}%`)),
-          el('div', { class: 'rv-quote', style: 'font-size:19px' }, `「${o.q}」`),
-          el('div', { class: 'rv-gc', style: 'font-size:17px' }, el('span', { class: 'g' }, o.good), el('span', { class: 'c' }, o.care)))));
+          el('div', { class: 'rv-top' }, el('img', { src: flowerImg(o.f), alt: '' }), el('div', { class: 'fl' }, el('b', {}, `${LETTERS[i]} 像${F.name}`), `${F.who}・花之${F.tag}`)),
+          el('div', { class: 'rv-text' }, el('span', { class: 'lt' }, LETTERS[i]), o.text),
+          el('div', { class: 'rv-bar' }, el('div', { class: 'track' }, fill), el('span', { class: 'num' }, `${n} 人・${pct(n, t)}%`)),
+          el('div', { class: 'rv-quote' }, `「${o.q}」`),
+          el('div', { class: 'rv-gc' }, el('span', { class: 'g' }, o.good), el('span', { class: 'c' }, o.care)))));
     setTimeout(() => { c.classList.add('flip'); setTimeout(() => { fill.style.width = pct(n, t) + '%'; }, 500); }, 300 + i * 600);
     return c;
   });
   const answered = d.answered[d.qi] || 0;
-  app.replaceChildren(brand(dotsT()),
+  put(brand(dotsT()),
     el('h1', { style: 'font-size:clamp(30px,3.6vw,46px);letter-spacing:.08em;margin:4px 0 14px' }, `揭曉：${s.title}`),
     el('div', { class: 'rv-grid' }, ...cards),
     el('div', { class: 'two', style: 'margin-top:16px;align-items:start' },
-      el('div', { class: 'talk', style: 'margin:0;font-size:24px' }, el('small', {}, '想一想・請兩三位同學說說'), s.talk),
+      el('div', {}, el('div', { class: 'talk', style: 'margin:0' }, el('small', {}, '想一想・請兩三位同學說說'), s.talk),
+        el('div', { class: 'layer' }, el('p', {}, el('b', {}, '課文裡　'), '周敦頤藉蓮寫出自己嚮往的君子品格。'), el('p', {}, el('b', {}, '遊戲裡　'), '三朵花比喻三種做法，討論幫助和代價，不用花評斷人。'))),
       el('div', { class: 'paper', style: 'margin:0' },
-        el('div', { style: 'font-size:20px' }, `${answered} 人作答，`, el('b', { style: 'color:var(--ju);font-size:26px' }, String(d.guessOk[d.qi] || 0)), ' 人猜中全班多數'),
+        el('div', { class: 't-guess' }, `${answered} 人作答，`, el('b', {}, String(d.guessOk[d.qi] || 0)), ' 人猜中最多人選的'),
         el('div', { class: 't-actions', style: 'margin-top:12px' }, next, reopen),
         el('p', { class: 'key-hint' }, '鍵盤：空白鍵或 → 下一題'))));
 }
@@ -237,7 +241,7 @@ function renderEnd() {
   });
   const padQr = d.padlet ? el('div', { style: 'text-align:center' }, el('div', { class: 't-qr', style: 'max-width:200px' }, qrImg(d.padlet, 5)), el('div', { class: 'small muted' }, '掃這個進 Padlet'))
     : el('p', { class: 'muted' }, '填了 Padlet 網址，學生 iPad 上就會出現「前往 Padlet」按鈕。');
-  app.replaceChildren(brand(dotsT()),
+  put(brand(dotsT()),
     el('h1', { style: 'font-size:clamp(30px,3.6vw,46px);letter-spacing:.08em;margin:4px 0 14px' }, '我們班的花譜'),
     el('div', { class: 'paper big-ratio' },
       el('div', { class: 'pu' }, ...F3.map(f => el('figure', { style: `--c:${GAME_FLOWER[f].color}` }, el('img', { src: flowerImg(f), alt: '' }),
@@ -252,16 +256,16 @@ function renderEnd() {
           el('li', {}, el('div', {}, el('b', {}, '寫一句仿寫'), '予獨愛＿＿之＿＿＿＿')),
           el('li', {}, el('div', {}, el('b', {}, '挑畫風，存下三花箋圖卡'))),
           el('li', {}, el('div', {}, el('b', {}, '複製 AI 花束提示詞'), '花的數量照自己的花譜')),
-          el('li', {}, el('div', {}, el('b', {}, '在 Padlet 發文'), '附件用 Padlet 的 AI 生圖貼上提示詞；花箋圖卡貼在自己貼文的留言'))),
+          el('li', {}, el('div', {}, el('b', {}, '在 Padlet 發文'), '附件用 Padlet 的 AI 生圖貼上提示詞；花箋圖卡貼在自己貼文的留言。AI 生圖不能用時，先用花箋當附件發文'))),
         el('div', { style: 'display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:16px' }, padQr,
           el('div', { style: 'flex:1;min-width:220px;display:grid;gap:8px' }, el('span', { class: 'small muted' }, '班上的 Padlet'), pad, padSave, padMsg)))),
     el('div', { class: 'paper', style: 'margin-top:16px' },
       el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '評'), '互評格式', el('small', {}, '每人至少回應 2 位同學')),
       el('div', { class: 'review', style: 'font-size:20px' },
-        el('div', { class: 'c-ju' }, el('b', {}, '【我看到】'), '你的花束裡最多的是＿＿，你的句子寫＿＿。'),
-        el('div', { class: 'c-lian' }, el('b', {}, '【我欣賞】'), '我喜歡＿＿，因為＿＿。（說出是哪一朵花或哪幾個字）'),
-        el('div', { class: 'c-mudan' }, el('b', {}, '【我好奇】'), '為什麼你會＿＿？（問一個真的想知道的問題）')),
-      el('ul', { class: 'rules' }, el('li', {}, '不評畫得美不美，不說哪種花比較好。'), el('li', {}, '被留言的人，可以回一句「謝謝，其實是因為＿＿」。'))));
+        el('div', { class: 'c-ju' }, el('b', {}, '【我看到】'), '你的花譜記錄＿＿，你用「＿＿」描寫它。'),
+        el('div', { class: 'c-lian' }, el('b', {}, '【我欣賞】'), '這句讓我想到課文的＿＿，因為＿＿。'),
+        el('div', { class: 'c-mudan' }, el('b', {}, '【我好奇】'), '如果情境改成＿＿，你還會這樣選嗎？')),
+      el('ul', { class: 'rules' }, el('li', {}, '先回應座號下一號的同學（最後一號回 1 號），再自己選一位。'), el('li', {}, '不評畫得美不美，不說哪種花比較好；看花譜數字和文字，不看 AI 有沒有畫對。'), el('li', {}, '被留言的人，可以回「謝謝，其實是因為＿＿」，也可以回「這部分我想保留」。'))));
 }
 
 function update() {
@@ -287,7 +291,7 @@ async function poll() {
 document.addEventListener('visibilitychange', () => { if (!document.hidden && code && key) poll(); });
 document.addEventListener('keydown', e => {
   if (!d || e.target.closest('input,textarea')) return;
-  if ((e.key === ' ' || e.key === 'ArrowRight') && d.stage === 'reveal') { e.preventDefault(); act('next'); }
+  if ((e.key === ' ' || e.key === 'ArrowRight') && d.stage === 'reveal' && !e.repeat) { e.preventDefault(); act('next'); }
 });
 
 // 控制網址 #key=… → 存進這台電腦，再從網址列拿掉（投影時學生看不到）
@@ -295,7 +299,7 @@ const hk = new URLSearchParams(location.hash.slice(1)).get('key');
 if (code && hk) { saveGame({ code, key: hk, label: '', created: Date.now() }); history.replaceState(null, '', '?g=' + code); }
 if (code) {
   key = (games().find(r => r.code === code) || {}).key || '';
-  if (!key) app.replaceChildren(brand(), el('div', { class: 'paper' }, '這台電腦沒有這一局的控制權。請用開局的那台電腦，或用「複製控制網址」開啟。', el('p', {}, el('a', { href: './' }, '開新的一局'))));
+  if (!key) put(brand(), el('div', { class: 'paper' }, '這台電腦沒有這一局的控制權。請用開局的那台電腦，或用「複製控制網址」開啟。', el('p', {}, el('a', { href: './' }, '開新的一局'))));
   else poll();
 } else landing();
 </script>

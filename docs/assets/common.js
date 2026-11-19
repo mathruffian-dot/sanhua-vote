@@ -30,15 +30,18 @@ function deviceId() {
 
 async function api(path, opts = {}) {
   let r;
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const to = ctl ? setTimeout(() => ctl.abort(), 12000) : 0;
   try {
     r = await fetch(CFG.API + path, {
+      signal: ctl ? ctl.signal : undefined,
       method: opts.body ? 'POST' : 'GET',
       headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch {
-    throw new Error('連不上投票伺服器，請檢查網路後再試');
-  }
+    throw new Error('連不上伺服器（網路慢或斷線），請再按一次');
+  } finally { clearTimeout(to); }
   let data = {};
   try { data = await r.json(); } catch {}
   if (!r.ok) { const e = new Error(data.message || `伺服器回應 ${r.status}`); e.code = data.error; throw e; }

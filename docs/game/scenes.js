@@ -4,7 +4,7 @@
 
 const GAME_FLOWER = {
   ju:    { name: '菊',   long: '菊花', who: '陶淵明', tag: '隱逸者', color: 'var(--ju)',    hex: '#b0802a', mean: '守住自己的步調' },
-  mudan: { name: '牡丹', long: '牡丹', who: '楊貴妃', tag: '富貴者', color: 'var(--mudan)', hex: '#a3343f', mean: '熱情，讓大家開心' },
+  mudan: { name: '牡丹', long: '牡丹', who: '唐以來的世人', tag: '富貴者', color: 'var(--mudan)', hex: '#a3343f', mean: '熱情，讓大家開心' },
   lian:  { name: '蓮',   long: '蓮花', who: '周敦頤', tag: '君子者', color: 'var(--lian)',  hex: '#3b7a6b', mean: '在人群裡守住原則' },
 };
 
@@ -16,7 +16,7 @@ const SCENES = [
       { f: 'mudan', text: '丟一張好笑的梗圖，讓氣氛輕鬆一點', good: '大家笑了，火就小了', care: '問題沒解決，明天可能再吵', q: '牡丹之愛，宜乎眾矣' },
       { f: 'lian',  text: '傳一句「先別吵，明天下課當面投票好嗎？」', good: '把吵架拉回解決問題', care: '可能被回一句「你誰啊」', q: '出淤泥而不染' },
     ],
-    talk: '選 A 的人：你是在保護自己，還是覺得不關你的事？' },
+    talk: '什麼時候，先離開吵架的群組能幫助自己？什麼時候，需要有人出來說話？' },
 
   { id: 's02', title: '只有三個讚',
     scene: '你花了半小時拍的晚霞發上限動。一小時過去了，只有 3 個人按讚。',
@@ -55,7 +55,7 @@ const SCENES = [
     talk: '拒絕朋友的時候，怎麼說比較不傷人？' },
 
   { id: 's06', title: '叫 AI 寫一寫就好',
-    scene: '分組報告明天要交，組員在群組說：「叫 AI 寫一寫就好啦，老師又不會發現。」',
+    scene: '分組報告明天要交。老師說過：可以用 AI 找資料、想點子，但內容要自己查證、寫清楚怎麼用。組員卻在群組說：「叫 AI 寫一寫就好啦，老師又不會發現。」',
     opts: [
       { f: 'lian',  text: '回他：「AI 可以幫忙查資料，但內容用自己的話寫，我先寫一段」', good: '會用工具，也守住原則', care: '要多做很多，可能被覺得難搞', q: '出淤泥而不染' },
       { f: 'ju',    text: '不爭了，自己負責的那一段自己好好寫', good: '至少自己問心無愧', care: '別人用 AI 交差的部分，分數還是一起扛', q: '菊，花之隱逸者也' },
@@ -73,7 +73,7 @@ const SCENES = [
     talk: '跟大家不一樣，就一定是「不合群」嗎？' },
 
   { id: 's08', title: '被做成梗圖',
-    scene: '有人把同班同學的醜照做成梗圖發上 IG，底下一堆人留「哈哈哈」。',
+    scene: '有人把同班同學一張沒經過他同意、他自己不喜歡的照片做成梗圖發上 IG，底下一堆人留「哈哈哈」。',
     opts: [
       { f: 'ju',    text: '不按讚、不留言，直接滑過去', good: '至少不跟著起鬨', care: '被笑的同學不知道有人站在他那邊', q: '菊，花之隱逸者也' },
       { f: 'mudan', text: '留言說那位同學平常的優點，帶大家改成鼓勵他', good: '用你的人氣把風向轉正', care: '需要勇氣，也可能被一起開玩笑', q: '牡丹，花之富貴者也' },
@@ -132,19 +132,21 @@ const FLOWER_ZH = { lian: '粉白色蓮花', ju: '黃白色菊花', mudan: '紅�
 const FLOWER_EN = { lian: ['pink-white lotus flower', 'pink-white lotus flowers'], ju: ['yellow-white chrysanthemum', 'yellow-white chrysanthemums'], mudan: ['red peony', 'red peonies'] };
 const NUM_EN = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
-// 點綴：猜中全班多數一半以上＝滿天星（看得見別人），不到一半＝尤加利葉（有自己的步調）；最多的那朵花再加一樣
+// 點綴：猜中全班多數一半以上＝滿天星，不到一半＝尤加利葉；最多的那朵花再配一樣。說明只講事實，不替學生貼人格標籤（Astra 審核 2026-11-20）
 const FILLER_GUESS = {
-  hi: { zh: '滿天星', en: "baby's breath", mean: '滿天星：你看得見別人在想什麼' },
-  lo: { zh: '尤加利葉', en: 'eucalyptus leaves', mean: '尤加利葉：你有自己的步調' },
+  hi: { zh: '滿天星', en: "baby's breath", mean: '滿天星：這一局常猜中全班的選擇' },
+  lo: { zh: '尤加利葉', en: 'eucalyptus leaves', mean: '尤加利葉：這一局較少猜中全班的選擇' },
 };
 const FILLER_TOP = {
-  lian:  { zh: '幾枝細竹葉', en: 'a few slender bamboo leaves', mean: '竹葉：跟蓮一樣，是君子' },
-  ju:    { zh: '幾支麥穗', en: 'a few ears of wheat', mean: '麥穗：陶淵明的田園' },
-  mudan: { zh: '幾朵粉色小玫瑰', en: 'a few small pink roses', mean: '小玫瑰：熱熱鬧鬧' },
+  lian:  { zh: '幾枝細竹葉', en: 'a few slender bamboo leaves', mean: '竹葉：配蓮花的綠' },
+  ju:    { zh: '幾支麥穗', en: 'a few ears of wheat', mean: '麥穗：配菊花的秋天' },
+  mudan: { zh: '幾朵粉色小玫瑰', en: 'a few small pink roses', mean: '小玫瑰：配牡丹的熱鬧' },
 };
 
 // counts: {ju, mudan, lian}；guessRate: 0–1
 function bouquet(counts, guessRate, styleId, wrapId) {
+  // 一題都沒答：三種花各一朵，讓學生還是能做花束
+  if (!((counts.lian || 0) + (counts.ju || 0) + (counts.mudan || 0))) counts = { lian: 1, ju: 1, mudan: 1 };
   const order = ['lian', 'ju', 'mudan'].filter(f => counts[f] > 0).sort((a, b) => counts[b] - counts[a]);
   const top = order[0] || 'lian';
   const g = guessRate >= 0.5 ? FILLER_GUESS.hi : FILLER_GUESS.lo;
