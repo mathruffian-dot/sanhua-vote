@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" as="image" href="assets/img/hero-800.webp" imagesrcset="assets/img/hero-800.webp 800w, assets/img/hero-1600.webp 1600w" imagesizes="100vw">
-<link rel="stylesheet" href="assets/style.css?v=20261119b">
+<link rel="stylesheet" href="assets/style.css?v=20261119e">
 <script src="assets/config.js"></script>
 </head>
 <body>
@@ -48,9 +48,9 @@
       <div id="bars"></div>
       <p class="muted small" id="total"></p>
     </div>
-    <div class="actions">
-      <button class="btn ghost small" id="refresh">更新票數</button>
-      <a class="btn ghost small" id="video" hidden target="_blank" rel="noopener">回去看影片</a>
+    <div class="actions wide">
+      <button class="btn ghost" id="refresh">更新票數</button>
+      <a class="btn ghost" id="video" hidden target="_blank" rel="noopener">回去看影片</a>
     </div>
     <p class="hint" style="margin-top:18px">想一想：周敦頤說「牡丹之愛，宜乎眾矣」。票最多的，就一定是對的嗎？</p>
   </section>
@@ -67,12 +67,12 @@
     <h2>老師要在課堂上用？</h2>
     <div class="tl-grid">
       <a class="tl" href="class/">
-        <span class="tl-ico" aria-hidden="true">🗳️</span>
+        <img class="tl-ico" src="assets/img/icon-vote.webp" alt="" width="72" height="72" loading="lazy">
         <span class="tl-txt"><b>班級投票</b><span>開一個房間，全班掃 QR 兩輪投票</span></span>
         <span class="tl-go" aria-hidden="true">›</span>
       </a>
       <a class="tl" href="class/guide.html">
-        <span class="tl-ico" aria-hidden="true">📖</span>
+        <img class="tl-ico" src="assets/img/icon-guide.webp" alt="" width="72" height="72" loading="lazy">
         <span class="tl-txt"><b>使用手冊</b><span>〈愛蓮說〉× SEL 教師手冊（45 分鐘流程）</span></span>
         <span class="tl-go" aria-hidden="true">›</span>
       </a>
@@ -85,7 +85,7 @@
   </footer>
 </main>
 
-<script src="assets/common.js?v=20261119b"></script>
+<script src="assets/common.js?v=20261119e"></script>
 <script>
 let picked = null, token = '';
 const $ = id => document.getElementById(id);

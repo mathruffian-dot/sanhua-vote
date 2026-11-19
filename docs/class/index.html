@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>三花之戰 課堂版</title>
 <meta name="description" content="老師開房間，全班用手機投兩輪：先投、公布「我們班 vs 全網」、討論、再投，看誰改了想法。">
-<link rel="stylesheet" href="../assets/style.css?v=20261119b">
+<link rel="stylesheet" href="../assets/style.css?v=20261119e">
 <script src="../assets/config.js"></script>
 </head>
 <body>
@@ -20,7 +20,7 @@
 </div>
 
 <script src="../assets/qrcode.js"></script>
-<script src="../assets/common.js?v=20261119b"></script>
+<script src="../assets/common.js?v=20261119e"></script>
 <script>
 const $ = id => document.getElementById(id);
 const app = $('app');
@@ -48,24 +48,37 @@ function landing() {
     } catch (e) { setErr(e.message); btn.disabled = false; }
   };
   const mine = rooms().filter(r => Date.now() - r.created < 30 * 86400000);
+  btn.className = 'btn block colored'; btn.style.setProperty('--c', 'var(--lian)');
+  const STEP = [
+    ['一', '掃碼投第一輪', '老師投影 QR code，學生用手機投票；這時看不到票數。'],
+    ['二', '公布：我們班 vs 全網', '老師按「公布」，全班一起看兩邊選得一不一樣。'],
+    ['三', '討論後投第二輪', '分組討論，再投一次；多了「我還在想」，可以寫一句理由。'],
+    ['四', '看誰改了想法', '公布第二輪：誰從哪朵花換到哪朵花（匿名）。']];
   app.replaceChildren(
-    el('h1', {}, '班級兩輪投票'),
-    el('p', { class: 'hint', style: 'margin-top:10px' }, '看完〈三花之戰〉，全班用手機投票。學生不用登入、不填名字。'),
-    el('p', {}, el('a', { class: 'btn ghost block', href: 'guide.html' }, '📖 使用手冊（45 分鐘上課流程）')),
+    el('section', { class: 'class-hero' },
+      el('h1', {}, '班級兩輪投票'),
+      el('p', { class: 'tagline' }, '先投、公布、討論、再投——看誰改了想法'),
+      el('p', { class: 'hint' }, '看完〈三花之戰〉，全班用手機投票。學生不用登入、不填名字。')),
+    el('div', { class: 'card open-card' },
+      el('h2', {}, '開一個房間'),
+      el('label', { class: 'field-label' }, '班級名稱', label), btn,
+      el('p', { class: 'small muted', style: 'margin:10px 0 0' }, '班上的票不會算進全網統計。房間 30 天後自動關閉。')),
+    el('a', { class: 'tl', href: 'guide.html' },
+      el('img', { class: 'tl-ico', src: '../assets/img/icon-guide.webp', alt: '', width: '72', height: '72' }),
+      el('span', { class: 'tl-txt' }, el('b', {}, '使用手冊'), el('span', {}, '〈愛蓮說〉× SEL 教師手冊（45 分鐘上課流程）')),
+      el('span', { class: 'tl-go', 'aria-hidden': 'true' }, '›')),
     el('div', { class: 'card' },
       el('h2', {}, '上課流程'),
-      el('ol', { style: 'margin:0;padding-left:1.3em' },
-        el('li', {}, '老師開房間，投影 QR code，學生掃碼投第一輪（看不到票數）。'),
-        el('li', {}, '老師按「公布」，投影「我們班 vs 全網」。'),
-        el('li', {}, '分組討論後，老師開第二輪，學生再投一次，可以寫一句理由。'),
-        el('li', {}, '老師公布第二輪：誰從哪朵花換到哪朵花（匿名）。'))),
-    el('div', { class: 'card' },
-      el('h2', {}, '開房間'), label, el('div', { style: 'height:12px' }), btn,
-      el('p', { class: 'small muted', style: 'margin:10px 0 0' }, '班上的票不會算進全網統計。房間 30 天後自動關閉。')),
+      el('ol', { class: 'flow-steps' }, ...STEP.map(([n, t, d]) => el('li', {},
+        el('span', { class: 'no', 'aria-hidden': 'true' }, n), el('div', {}, el('b', {}, t), el('span', {}, d)))))),
     mine.length ? el('div', { class: 'card' }, el('h2', {}, '我開過的房間（這台電腦）'),
-      ...mine.map(r => el('p', { style: 'margin:6px 0' }, el('a', { href: '?room=' + r.code }, `${r.code}${r.label ? '・' + r.label : ''}`),
-        el('span', { class: 'muted small' }, '　' + new Date(r.created).toLocaleString('zh-TW'))))) : null,
-    el('footer', {}, el('a', { href: '../' }, '← 全網投票頁')));
+      el('div', { class: 'room-list' }, ...mine.map(r => el('a', { class: 'room-row', href: '?room=' + r.code },
+        el('span', { class: 'rc' }, r.code), el('span', { class: 'rl' }, r.label || '（沒有填班級）'),
+        el('span', { class: 'rd' }, new Date(r.created).toLocaleDateString('zh-TW')), el('span', { class: 'tl-go', 'aria-hidden': 'true' }, '›'))))) : null,
+    el('a', { class: 'tl back-global', href: '../' },
+      el('img', { class: 'tl-ico', src: '../assets/img/icon-vote.webp', alt: '', width: '72', height: '72' }),
+      el('span', { class: 'tl-txt' }, el('b', {}, '全網投票'), el('span', {}, '回到給所有人投的版本，看全網票數')),
+      el('span', { class: 'tl-go', 'aria-hidden': 'true' }, '›')));
 }
 
 // ---------- 房間：投影畫面 ----------
@@ -82,12 +95,13 @@ async function go(to) {
 function joinBox() {
   const qr = el('div', { class: 'qr' }, qrImg(joinUrl(code), 8));
   const box = el('div', { class: 'card joinbox' },
-    el('div', { class: 'muted' }, '學生用手機掃'), qr,
+    el('div', { class: 'jb-title' }, '學生用手機掃這裡'), qr,
+    el('div', { class: 'muted small', style: 'margin-top:8px' }, '或打開網址輸入房號'),
     el('div', { class: 'bigcode' }, code),
     el('div', { class: 'small muted', style: 'word-break:break-all' }, joinUrl(code).replace(/^https?:\/\//, '')),
-    el('div', { class: 'actions', style: 'justify-content:center' },
-      el('button', { class: 'btn ghost small', onclick: openQr }, '放大 QR'),
-      el('button', { class: 'btn ghost small', onclick: copyCtrl }, '複製控制網址')));
+    el('div', { class: 'jb-actions' },
+      el('button', { class: 'btn colored', style: '--c:var(--lian)', onclick: openQr }, '放大 QR'),
+      el('button', { class: 'btn ghost', onclick: copyCtrl }, '複製控制網址')));
   return box;
 }
 
@@ -124,7 +138,7 @@ function flowList(d) {
 
 function reasonList(d) {
   const wrap = el('div');
-  const toggle = el('button', { class: 'btn ghost small' }, showReasons ? '收起理由' : `顯示理由（${d.reasons.length} 則）`);
+  const toggle = el('button', { class: 'btn ghost' }, showReasons ? '收起理由' : `顯示理由（${d.reasons.length} 則）`);
   toggle.onclick = () => { showReasons = !showReasons; render(true); };
   wrap.append(toggle);
   if (!showReasons) return wrap;
@@ -148,30 +162,30 @@ function panel(d) {
   const p = el('div', { class: 'card' });
   if (d.phase === 'r1') {
     p.append(el('h2', {}, '第一輪投票中'),
-      el('div', { class: 'counter' }, d.n1), el('p', { class: 'muted' }, '人已投（票數先不公布）'),
-      el('p', {}, '題目：周敦頤選了蓮。你認同哪一種活法？'),
-      el('div', { class: 'actions' }, el('button', { class: 'btn', onclick: () => go('r1_result'), disabled: d.n1 === 0 }, '公布第一輪結果')));
+      el('div', { class: 'counter' }, d.n1, el('span', { class: 'unit' }, '人已投')), el('p', { class: 'muted' }, '票數先不公布，等大家都投完再按公布。'),
+      el('p', { class: 'topic' }, '題目：周敦頤選了蓮。你認同哪一種活法？'),
+      el('div', { class: 'actions' }, el('button', { class: 'btn colored go', onclick: () => go('r1_result'), disabled: d.n1 === 0 }, '公布第一輪結果')));
   } else if (d.phase === 'r1_result') {
     const bars = el('div');
     p.append(el('h2', {}, '我們班 vs 全網'),
       el('div', { class: 'legend' }, `我們班 ${d.n1} 人`, `全網 ${total(d.global).toLocaleString()} 人（公布當下）`), bars,
-      el('div', { class: 'card', style: 'margin-bottom:0' },
+      el('div', { class: 'ask-card' },
         el('strong', {}, '可以問全班'),
         el('ul', { style: 'margin:6px 0 0;padding-left:1.2em' },
           el('li', {}, '我們班最多人選的，跟全網一樣嗎？為什麼？'),
           el('li', {}, '周敦頤說「牡丹之愛，宜乎眾矣」。票最多的，就一定是對的嗎？'),
           el('li', {}, '選得最少的那朵花，有沒有人願意替它說一句話？'))),
       el('div', { class: 'actions' },
-        el('button', { class: 'btn', onclick: () => go('r2') }, '開第二輪'),
-        el('button', { class: 'btn ghost small', onclick: () => go('r1') }, '退回：繼續收第一輪')));
+        el('button', { class: 'btn colored go', onclick: () => go('r2') }, '開第二輪'),
+        el('button', { class: 'btn ghost', onclick: () => go('r1') }, '退回：繼續收第一輪')));
     renderBars(bars, [{ label: '我們班', counts: d.class1 }, { label: '全網', counts: d.global, cls: 'global' }]);
   } else if (d.phase === 'r2') {
     p.append(el('h2', {}, '第二輪投票中'),
       el('div', { class: 'counter' }, `${d.n2}`, el('span', { class: 'muted', style: 'font-size:28px' }, ` / ${d.n1}`)),
       el('p', { class: 'muted' }, '人已投第二輪（多了「我還在想」；學生可以寫一句理由，只有這個畫面看得到）'),
       el('div', { class: 'actions' },
-        el('button', { class: 'btn', onclick: () => go('r2_result'), disabled: d.n2 === 0 }, '公布第二輪結果'),
-        el('button', { class: 'btn ghost small', onclick: () => go('r1_result') }, '退回：第一輪結果')));
+        el('button', { class: 'btn colored go', onclick: () => go('r2_result'), disabled: d.n2 === 0 }, '公布第二輪結果'),
+        el('button', { class: 'btn ghost', onclick: () => go('r1_result') }, '退回：第一輪結果')));
   } else {
     const bars = el('div');
     const changed = Object.entries(d.flow).reduce((s, [a, row]) => s + Object.entries(row).reduce((t, [b, n]) => t + (a !== b ? n : 0), 0), 0);
@@ -181,8 +195,8 @@ function panel(d) {
         el('div', {}, el('div', { class: 'legend' }, '改票流向（匿名）'), flowList(d))),
       el('div', { style: 'margin-top:18px' }, reasonList(d)),
       el('div', { class: 'actions' },
-        el('button', { class: 'btn ghost small', onclick: downloadPng }, '下載結果圖'),
-        el('button', { class: 'btn ghost small', onclick: () => go('r2') }, '退回：繼續收第二輪')));
+        el('button', { class: 'btn ghost', onclick: downloadPng }, '下載結果圖'),
+        el('button', { class: 'btn ghost', onclick: () => go('r2') }, '退回：繼續收第二輪')));
     renderBars(bars, [{ label: '第一輪', counts: d.class1, cls: 'r1' }, { label: '第二輪', counts: d.class2 }]);
   }
   return p;
@@ -190,12 +204,13 @@ function panel(d) {
 
 function render(force) {
   const d = data;
-  $('banner').hidden = true;
+  $('banner').hidden = true; document.querySelector('#main > .kicker').hidden = true;
   $('main').classList.add('wide');
   app.replaceChildren(
-    el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap' },
-      el('h1', {}, d.label || '班級投票'), el('a', { href: './', class: 'small' }, '開新房間')),
-    el('div', { style: 'height:14px' }),
+    el('div', { class: 'room-head' },
+      el('div', { class: 'rh-avas', 'aria-hidden': 'true' }, ...FLOWERS.map(f => el('img', { src: imgOf(f.id), alt: '', width: '56', height: '56', style: `--c:var(--${f.id})` }))),
+      el('div', { class: 'rh-txt' }, el('div', { class: 'kicker' }, `〈三花之戰〉課堂版・房號 ${code}`), el('h1', {}, d.label || '班級投票')),
+      el('a', { href: './', class: 'btn ghost' }, '開新房間')),
     el('div', { class: 'stage' }, joinBox(), el('div', {}, steps(d.phase), panel(d))));
 }
 
