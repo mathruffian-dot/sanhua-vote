@@ -12,6 +12,10 @@ PUBLIC_PER_HOUR = "120"
 ROOMS_PER_HOUR = "20"
 ROOM_DAYS = "30"
 
+# 每天台灣時間凌晨 3 點清除超過 ROOM_DAYS 天的房間與遊戲
+[triggers]
+crons = ["0 19 * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "sanhua-vote"

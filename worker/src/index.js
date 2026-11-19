@@ -23,7 +23,26 @@ export default {
       return json({ error: 'server', message: '伺服器出錯，請稍後再試' }, 500, cors);
     }
   },
+  // 每天自動清除：超過 ROOM_DAYS 天的課堂房間、遊戲（含學生作答）與舊的次數紀錄
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(cleanup(env).then(r => console.log('cleanup', JSON.stringify(r))));
+  },
 };
+
+async function cleanup(env) {
+  const cutoff = Date.now() - Number(env.ROOM_DAYS || 30) * 86400000;
+  const hour = Math.floor(Date.now() / 3600000);
+  const res = await env.DB.batch([
+    env.DB.prepare('DELETE FROM game_answers WHERE code IN (SELECT code FROM games WHERE created_at < ?1)').bind(cutoff),
+    env.DB.prepare('DELETE FROM game_players WHERE code IN (SELECT code FROM games WHERE created_at < ?1)').bind(cutoff),
+    env.DB.prepare('DELETE FROM games WHERE created_at < ?1').bind(cutoff),
+    env.DB.prepare('DELETE FROM room_votes WHERE code IN (SELECT code FROM rooms WHERE created_at < ?1)').bind(cutoff),
+    env.DB.prepare('DELETE FROM rooms WHERE created_at < ?1').bind(cutoff),
+    env.DB.prepare('DELETE FROM rate WHERE hour < ?1').bind(hour - 48),
+  ]);
+  const n = res.map(r => r.meta.changes);
+  return { games: n[2], gameRows: n[0] + n[1], rooms: n[4], roomVotes: n[3], rate: n[5] };
+}
 
 class HttpError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
