@@ -1,3 +1,7 @@
+@font-face { font-family: "GenSeki"; font-weight: 400 500; font-display: swap; src: url("fonts/genseki-m.woff2") format("woff2"); }
+@font-face { font-family: "GenSeki"; font-weight: 600 700; font-display: swap; src: url("fonts/genseki-b.woff2") format("woff2"); }
+@font-face { font-family: "GenSeki"; font-weight: 800 900; font-display: swap; src: url("fonts/genseki-h.woff2") format("woff2"); }
+/* 字型：源石黑體 GenSeki Gothic 2 TW（SIL OFL 1.1），由 tools/make_fonts.py 裁字 */
 :root {
   --paper: #f4f0e6;
   --card: #fbf9f3;
@@ -31,16 +35,16 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
-  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   line-height: 1.6; font-size: 17px;
 }
 .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
 .wrap.wide { max-width: 1200px; }
-h1, h2, .serif { font-family: "Noto Serif TC", "Songti TC", "PMingLiU", serif; font-weight: 700; }
+h1, h2, .serif { font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; }
 h1 { font-size: 30px; margin: 0; letter-spacing: .06em; }
 h2 { font-size: 22px; margin: 0 0 12px; }
 .kicker { color: var(--ink-soft); font-size: 14px; letter-spacing: .08em; }
-.question { font-family: "Noto Serif TC", serif; font-size: 24px; font-weight: 700; margin: 20px 0 6px; line-height: 1.45; }
+.question { font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-size: 24px; font-weight: 700; margin: 20px 0 6px; line-height: 1.45; }
 .hint { color: var(--ink-soft); font-size: 15px; margin: 0 0 16px; }
 .muted { color: var(--ink-soft); }
 .small { font-size: 14px; }
@@ -57,7 +61,7 @@ h2 { font-size: 22px; margin: 0 0 12px; }
 .opt:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .seal {
   width: 64px; height: 64px; border-radius: 12px; display: grid; place-items: center;
-  background: var(--c); color: #fff; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 26px;
+  background: var(--c); color: #fff; font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; font-size: 26px;
 }
 .seal.long { font-size: 19px; letter-spacing: -.02em; }
 .opt .who { font-weight: 700; font-size: 18px; }
@@ -159,7 +163,7 @@ body {
 .banner-text { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 0 16px 6px; max-width: 960px; margin: 0 auto; }
 .banner-text h1 { font-size: clamp(36px, 7vw, 64px); letter-spacing: .12em; line-height: 1.1; text-shadow: 0 1px 0 var(--paper), 0 0 18px var(--paper); }
 .banner-text .kicker { color: var(--ink); text-shadow: 0 0 10px var(--paper); }
-.tagline { margin: 6px 0 0; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: clamp(16px, 2.6vw, 20px); text-shadow: 0 0 10px var(--paper); }
+.tagline { margin: 6px 0 0; font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; font-size: clamp(16px, 2.6vw, 20px); text-shadow: 0 0 10px var(--paper); }
 .tagline b { color: var(--c); } .tagline .ju { --c: var(--ju); } .tagline .mudan { --c: var(--mudan); } .tagline .lian { --c: var(--lian); }
 .banner.slim img { aspect-ratio: auto; height: clamp(110px, 22vw, 200px); object-position: center 42%; }
 .banner.slim::after { background: linear-gradient(to bottom, transparent 30%, var(--paper) 100%); }
@@ -175,11 +179,11 @@ body {
 .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pic .badge {
   position: absolute; left: 6px; bottom: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 8px;
-  display: grid; place-items: center; background: var(--c); color: #fff; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 18px;
+  display: grid; place-items: center; background: var(--c); color: #fff; font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; font-size: 18px;
   box-shadow: 0 1px 4px rgba(0,0,0,.25);
 }
 .pic .seal { width: 100%; height: 100%; border-radius: 0; font-size: 34px; }
-.opt .quote { font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 15px; color: var(--c); margin-top: 2px; letter-spacing: .04em; }
+.opt .quote { font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; font-size: 15px; color: var(--c); margin-top: 2px; letter-spacing: .04em; }
 .opt .line { font-size: 14px; line-height: 1.5; }
 .opt .tick {
   position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--c); color: #fff;
@@ -205,12 +209,12 @@ body {
 .mine { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; margin: 18px 0 4px; }
 .mine img { width: 120px; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 14px; border: 3px solid var(--c); display: block; }
 .mine .question { margin: 0; }
-.mine .quote { font-family: "Noto Serif TC", serif; font-weight: 700; color: var(--c); margin: 4px 0 0; }
+.mine .quote { font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; color: var(--c); margin: 4px 0 0; }
 
 /* 課文三句 */
 .classic { margin: 28px 0 0; padding: 18px 18px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
 .classic h2 { font-size: 18px; color: var(--ink-soft); margin-bottom: 8px; }
-.classic p { margin: 4px 0; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 19px; letter-spacing: .06em; }
+.classic p { margin: 4px 0; font-family: "GenSeki", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; font-weight: 700; font-size: 19px; letter-spacing: .06em; }
 .classic p span { color: var(--c); }
 .classic .src { font-family: inherit; font-weight: 400; font-size: 13px; color: var(--ink-soft); letter-spacing: 0; margin-top: 8px; }
 @media (max-width: 600px) {

@@ -32,3 +32,5 @@ npx wrangler deploy
 本機測試：`npx wrangler dev --local`（API 在 8787），另開靜態伺服器跑 `docs/`；localhost 開的頁面會自動連本機 API。
 
 QR code 產生器：qrcode-generator（Kazuhiko Arase，MIT）。
+
+字型：源石黑體 GenSeki Gothic 2 TW（ButTaiwan，SIL Open Font License 1.1，https://github.com/ButTaiwan/genseki-font ），`docs/assets/fonts/` 是只含網站用字的子集，網站文字改了就跑 `python tools/make_fonts.py` 重裁（需要 fonttools、brotli）。

@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>三花之戰 課堂版</title>
 <meta name="description" content="老師開房間，全班用手機投兩輪：先投、公布「我們班 vs 全網」、討論、再投，看誰改了想法。">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;800&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/style.css?v=20261119">
 <script src="../assets/config.js"></script>
 </head>
@@ -203,27 +200,28 @@ function render(force) {
 }
 
 // ---------- 下載結果圖 ----------
-function downloadPng() {
+async function downloadPng() {
+  await Promise.all(['400 26px GenSeki', '700 52px GenSeki'].map(f => document.fonts.load(f).catch(() => {})));
   const d = data, W = 1600, H = 900, c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
   const col = { ju: '#b0802a', mudan: '#a3343f', lian: '#3b7a6b', think: '#6f7a8f' };
   g.fillStyle = '#f4f0e6'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#2b2925'; g.font = '700 52px "Noto Serif TC", serif';
+  g.fillStyle = '#2b2925'; g.font = '700 52px "GenSeki", sans-serif';
   g.fillText('〈三花之戰〉班級投票' + (d.label ? '・' + d.label : ''), 70, 100);
-  g.font = '400 26px "Noto Sans TC", sans-serif'; g.fillStyle = '#6b665c';
+  g.font = '400 26px "GenSeki", sans-serif'; g.fillStyle = '#6b665c';
   g.fillText(`${new Date(d.created_at).toLocaleDateString('zh-TW')}　周敦頤選了蓮。你認同哪一種活法？`, 70, 148);
   const groups = [['第一輪', d.class1, 0.45], ['第二輪', d.class2, 1], ['全網', d.global, -1]];
   let y = 210;
   const rowsP = d.class2.think ? [...FLOWERS, THINK] : FLOWERS;
   const gap = rowsP.length > 3 ? 14 : 40;
   for (const f of rowsP) {
-    g.fillStyle = '#2b2925'; g.font = '700 30px "Noto Sans TC", sans-serif';
+    g.fillStyle = '#2b2925'; g.font = '700 30px "GenSeki", sans-serif';
     g.fillText(f.id === 'think' ? f.who : `${f.flower}・${f.who}`, 70, y);
     y += 16;
     for (const [lab, cnt, a] of groups) {
       const t = total(cnt), n = cnt[f.id] || 0, w = t ? (n / t) * 760 : 0;
-      g.font = '400 22px "Noto Sans TC", sans-serif'; g.fillStyle = '#6b665c'; g.fillText(lab, 70, y + 22);
+      g.font = '400 22px "GenSeki", sans-serif'; g.fillStyle = '#6b665c'; g.fillText(lab, 70, y + 22);
       g.fillStyle = '#e4dece'; g.fillRect(170, y + 4, 760, 22);
       g.fillStyle = a < 0 ? '#8a8476' : col[f.id]; g.globalAlpha = a < 0 ? 1 : a; g.fillRect(170, y + 4, w, 22); g.globalAlpha = 1;
       g.fillStyle = '#2b2925'; g.fillText(`${pct(n, t)}%（${n}）`, 945, y + 22);
@@ -231,8 +229,8 @@ function downloadPng() {
     }
     y += gap;
   }
-  g.fillStyle = '#2b2925'; g.font = '700 32px "Noto Sans TC", sans-serif'; g.fillText('改票流向', 1150, 220);
-  let fy = 270; g.font = '400 28px "Noto Sans TC", sans-serif';
+  g.fillStyle = '#2b2925'; g.font = '700 32px "GenSeki", sans-serif'; g.fillText('改票流向', 1150, 220);
+  let fy = 270; g.font = '400 28px "GenSeki", sans-serif';
   const rows = [];
   for (const a of FLOWERS) for (const b of [...FLOWERS, THINK]) if (a.id !== b.id && d.flow[a.id][b.id]) rows.push([a, b, d.flow[a.id][b.id]]);
   rows.sort((x, y2) => y2[2] - x[2]);
@@ -240,7 +238,7 @@ function downloadPng() {
   for (const [a, b, n] of rows) { g.fillText(`${a.flower} → ${nameOf(b.id)}　${n} 人`, 1150, fy); fy += 44; }
   const stay = FLOWERS.reduce((s, f) => s + d.flow[f.id][f.id], 0);
   g.fillStyle = '#6b665c'; g.fillText(`沒換 ${stay} 人`, 1150, fy + 10);
-  g.font = '400 22px "Noto Sans TC", sans-serif';
+  g.font = '400 22px "GenSeki", sans-serif';
   g.fillText(`我們班 ${d.n1} 人投第一輪、${d.n2} 人投第二輪；全網 ${total(d.global).toLocaleString()} 人（公布當下）`, 70, H - 50);
   const a = document.createElement('a');
   a.download = `三花之戰_班級投票_${code}.png`; a.href = c.toDataURL('image/png'); a.click();
