@@ -308,3 +308,5 @@ body {
 .joinbox .qr { max-width: 100%; box-sizing: border-box; }
 .joinbox .qr img, .joinbox .qr canvas { width: min(240px, 100%); height: auto; aspect-ratio: 1; }
 .joinbox .small { overflow-wrap: anywhere; }
+.teacher-links.raid-link { margin-top: 28px; }
+.raid-link .nb { display: inline-block; }
