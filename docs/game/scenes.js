@@ -153,10 +153,18 @@ function bouquet(counts, guessRate, styleId, wrapId) {
   const wrap = WRAPS.find(w => w.id === wrapId) || WRAPS[0];
   const zhParts = order.map(f => `${counts[f]} 朵${FLOWER_ZH[f]}${f === 'lian' && counts[f] >= 2 ? '（其中一朵帶綠色蓮蓬）' : ''}`);
   const enParts = order.map(f => `${NUM_EN[counts[f]] || counts[f]} ${FLOWER_EN[f][counts[f] > 1 ? 1 : 0]}`);
-  const zh = `${wrap.zh}。花材比例：${zhParts.join('、')}，${GAME_FLOWER[top].long}最多、最顯眼。`
+  const tops = topFlowers(counts);
+  const tied = tops.length > 1;
+  const zh = `${wrap.zh}。花材比例：${zhParts.join('、')}，${tied ? tops.map(f => GAME_FLOWER[f].long).join('和') + '一樣多、份量相當' : GAME_FLOWER[top].long + '最多、最顯眼'}。`
     + `點綴${g.zh}和${t.zh}。${style.zh}。畫面中只有花，不要有文字、不要有人物。`;
-  const en = `${cap(wrap.en)}. Flowers in this exact proportion: ${enParts.join(', ')}; the ${FLOWER_EN[top][1]} are the most prominent. `
+  const en = `${cap(wrap.en)}. Flowers in this exact proportion: ${enParts.join(', ')}; ${tied ? 'the ' + tops.map(f => FLOWER_EN[f][1]).join(' and ') + ' are evenly balanced' : 'the ' + FLOWER_EN[top][1] + ' are the most prominent'}. `
     + `Accents: ${g.en} and ${t.en}. Style: ${style.en}. Only flowers, no text, no people.`;
   return { zh, en, fillers: [g.mean, t.mean], top };
 }
 const cap = s => s[0].toUpperCase() + s.slice(1);
+// 最多的花（可能同分好幾朵），照 蓮、菊、牡丹 排
+function topFlowers(counts) {
+  const m = Math.max(counts.lian || 0, counts.ju || 0, counts.mudan || 0);
+  return m ? ['lian', 'ju', 'mudan'].filter(f => counts[f] === m) : [];
+}
+const topNames = (counts, long = true) => topFlowers(counts).map(f => long ? GAME_FLOWER[f].long : GAME_FLOWER[f].name).join('和');
