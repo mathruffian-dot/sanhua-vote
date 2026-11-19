@@ -328,6 +328,7 @@ async function requireGameTeacher(env, code, key) {
 function cleanPadlet(u) {
   u = String(u || '').trim();
   if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
   let x;
   try { x = new URL(u); } catch { throw new HttpError(400, 'bad_padlet', 'Padlet 網址格式不對，要用 https:// 開頭'); }
   if (x.protocol !== 'https:') throw new HttpError(400, 'bad_padlet', 'Padlet 網址要用 https:// 開頭');

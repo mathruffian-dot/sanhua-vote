@@ -6,8 +6,8 @@
 <title>今天，你是哪朵花？</title>
 <meta name="description" content="〈愛蓮說〉情境遊戲：每題三種做法，全班投完一起揭曉是哪朵花，最後做出自己的三花箋與 AI 花束。">
 <meta name="theme-color" content="#f4f0e6">
-<link rel="stylesheet" href="../../assets/style.css?v=20261120d">
-<link rel="stylesheet" href="../game.css?v=20261120d">
+<link rel="stylesheet" href="../../assets/style.css?v=20261120f">
+<link rel="stylesheet" href="../game.css?v=20261120f">
 <script src="../../assets/config.js"></script>
 </head>
 <body class="g-body">
@@ -19,7 +19,7 @@
   <div><img id="sheetImg" alt="我的三花箋"><p><b>長按圖片 → 選「加入照片」</b></p><p class="small">存好之後，點下面的按鈕回去</p><button class="btn" id="sheetClose" type="button">回去</button></div>
 </div>
 
-<script src="../../assets/common.js?v=20261120d"></script>
+<script src="../../assets/common.js?v=20261120f"></script>
 <script src="../scenes.js?v=20261120e"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -363,9 +363,15 @@ function updatePadlet() {
   const want = st.padlet || '';
   if (box.dataset.u === want) return;
   box.dataset.u = want;
-  box.replaceChildren(want
-    ? el('a', { class: 'btn lian', href: want, target: '_blank', rel: 'noopener', style: 'margin-top:8px' }, '前往 Padlet')
-    : el('span', { class: 'small muted' }, '老師還沒給 Padlet 連結，等一下這裡會出現按鈕。'));
+  if (!want) return box.replaceChildren(el('span', { class: 'small muted' }, '老師還沒給 Padlet 連結，等一下這裡會出現按鈕。'));
+  // 新分頁打開；打不開（App 內建瀏覽器擋新分頁）就用「在這裡打開」或複製網址。花箋內容存在這台 iPad，回來還在。
+  const cp = el('button', { class: 'btn small ghost', type: 'button' }, '複製網址');
+  cp.addEventListener('click', () => copy(want, cp, '複製網址'));
+  box.replaceChildren(
+    el('a', { class: 'btn lian', href: want, target: '_blank', rel: 'noopener', style: 'margin-top:8px;width:100%;min-height:58px' }, '前往 Padlet（開新分頁）'),
+    el('div', { class: 'copyline', style: 'margin-top:8px' },
+      el('span', { class: 'small muted' }, '打不開？'),
+      el('a', { class: 'btn small ghost', href: want }, '在這裡打開'), cp));
 }
 
 // ---------- 花箋圖卡（canvas 1080×1440） ----------

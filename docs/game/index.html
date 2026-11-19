@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>今天，你是哪朵花？ 老師版</title>
 <meta name="description" content="〈愛蓮說〉情境遊戲老師控制台：開一局、投影情境、全班答完一起揭曉，最後學生做三花箋與 AI 花束、貼到 Padlet 互評。">
-<link rel="stylesheet" href="../assets/style.css?v=20261120d">
-<link rel="stylesheet" href="game.css?v=20261120d">
+<link rel="stylesheet" href="../assets/style.css?v=20261120f">
+<link rel="stylesheet" href="game.css?v=20261120f">
 <script src="../assets/config.js"></script>
 </head>
 <body class="g-body">
@@ -19,7 +19,7 @@
 </div>
 
 <script src="../assets/qrcode.js"></script>
-<script src="../assets/common.js?v=20261120d"></script>
+<script src="../assets/common.js?v=20261120f"></script>
 <script src="scenes.js?v=20261120e"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -110,7 +110,7 @@ function bigQr() {
 $('qrfull').addEventListener('click', () => $('qrfull').classList.remove('show'));
 
 function render() {
-  const k = d.stage + d.qi;
+  const k = d.stage + d.qi + (d.stage === 'end' ? '|' + d.padlet : '');
   if (view !== k) {
     view = k;
     $('main').classList.add('wide');
@@ -225,8 +225,17 @@ function renderEnd() {
   });
   const pad = el('input', { type: 'text', inputmode: 'url', value: d.padlet || '', placeholder: 'https://padlet.com/…', 'aria-label': 'Padlet 網址' });
   const padSave = el('button', { class: 'btn small', type: 'button' }, d.padlet ? '更新' : '送出給學生');
-  padSave.addEventListener('click', () => act('padlet', { padlet: pad.value.trim() }));
-  const padQr = d.padlet ? el('div', { class: 't-qr', style: 'max-width:200px' }, qrImg(d.padlet, 5)) : el('p', { class: 'muted' }, '填了 Padlet 網址，學生 iPad 上就會出現「前往 Padlet」按鈕。');
+  const padMsg = el('div', { class: 'small', role: 'status', style: 'min-height:1.5em;font-weight:700;color:var(--lian)' }, d.padlet ? '✓ 已送出：學生 iPad 上會出現「前往 Padlet」按鈕，也可以直接掃左邊的 QR。' : '');
+  padSave.addEventListener('click', async () => {
+    let u = pad.value.trim();
+    if (!u) { padMsg.style.color = 'var(--mudan)'; padMsg.textContent = '先貼上 Padlet 網址'; return; }
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    padSave.disabled = true; padMsg.style.color = 'var(--ink-soft)'; padMsg.textContent = '送出中…';
+    try { await api(`/api/game/${code}/advance`, { body: { key, action: 'padlet', padlet: u } }); view = ''; await poll(); }
+    catch (e) { padSave.disabled = false; padMsg.style.color = 'var(--mudan)'; padMsg.textContent = e.message; }
+  });
+  const padQr = d.padlet ? el('div', { style: 'text-align:center' }, el('div', { class: 't-qr', style: 'max-width:200px' }, qrImg(d.padlet, 5)), el('div', { class: 'small muted' }, '掃這個進 Padlet'))
+    : el('p', { class: 'muted' }, '填了 Padlet 網址，學生 iPad 上就會出現「前往 Padlet」按鈕。');
   app.replaceChildren(brand(dotsT()),
     el('h1', { style: 'font-size:clamp(30px,3.6vw,46px);letter-spacing:.08em;margin:4px 0 14px' }, '我們班的花譜'),
     el('div', { class: 'paper big-ratio' },
@@ -244,7 +253,7 @@ function renderEnd() {
           el('li', {}, el('div', {}, el('b', {}, '複製 AI 花束提示詞'), '花的數量照自己的花譜')),
           el('li', {}, el('div', {}, el('b', {}, '在 Padlet 發文'), '附件用 Padlet 的 AI 生圖貼上提示詞；花箋圖卡貼在自己貼文的留言'))),
         el('div', { style: 'display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:16px' }, padQr,
-          el('div', { style: 'flex:1;min-width:220px;display:grid;gap:8px' }, el('span', { class: 'small muted' }, '班上的 Padlet'), pad, padSave)))),
+          el('div', { style: 'flex:1;min-width:220px;display:grid;gap:8px' }, el('span', { class: 'small muted' }, '班上的 Padlet'), pad, padSave, padMsg)))),
     el('div', { class: 'paper', style: 'margin-top:16px' },
       el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '評'), '互評格式', el('small', {}, '每人至少回應 2 位同學')),
       el('div', { class: 'review', style: 'font-size:20px' },
