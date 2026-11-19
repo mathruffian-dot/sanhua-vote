@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三花之戰 課堂投票</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/config.js"></script>
+</head>
+<body>
+<main class="wrap">
+  <div class="kicker" id="kicker">〈三花之戰〉課堂投票</div>
+  <div id="app"></div>
+  <div class="err" id="err" role="alert"></div>
+  <footer>不收姓名、不用登入。你的票只用一個匿名代號記錄，老師也看不到是誰投的。</footer>
+</main>
+
+<script src="../assets/common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const app = $('app');
+const dev = deviceId();
+let code = (new URLSearchParams(location.search).get('r') || '').replace(/\D/g, '').slice(0, 6);
+let state = null, lastKey = '', timer = null, busy = false;
+
+function setErr(m) { $('err').textContent = m || ''; }
+
+function enterCode() {
+  app.replaceChildren(
+    el('p', { class: 'question' }, '輸入老師給的 6 位數代號'),
+    el('input', { type: 'text', id: 'code', class: 'code-input', inputmode: 'numeric', maxlength: '6', autocomplete: 'off', 'aria-label': '房間代號' }),
+    el('div', { style: 'height:12px' }),
+    el('button', { class: 'btn block', id: 'go' }, '進入'));
+  $('go').onclick = () => {
+    const c = $('code').value.replace(/\D/g, '');
+    if (c.length !== 6) return setErr('代號是 6 位數字');
+    location.search = '?r=' + c;
+  };
+}
+
+function voteForm(round) {
+  let pick = null;
+  const opts = el('div', { class: 'options' });
+  const btn = el('button', { class: 'btn block', disabled: true }, '選一朵花');
+  const parts = [];
+  if (round === 1) {
+    parts.push(el('div', { class: 'ok-badge' }, '第一輪'),
+      el('p', { class: 'question' }, '周敦頤選了蓮。你認同哪一種活法？'),
+      el('p', { class: 'hint' }, '先別看旁邊的人，自己選。'));
+  } else {
+    parts.push(el('div', { class: 'ok-badge' }, '第二輪'),
+      el('p', { class: 'question' }, '聽完大家的想法，你現在認同哪一種？'),
+      el('p', { class: 'hint' }, state.voted[1] ? `第一輪你選了${FLOWER[state.voted[1]].flower}。可以換、可以不換，也可以選「我還在想」。` : '你沒投到第一輪，沒關係，這一輪直接選。也可以選「我還在想」。'));
+  }
+  parts.push(opts);
+  let reason = null;
+  if (round === 2) {
+    reason = el('textarea', { maxlength: '60', placeholder: '我選這個是因為…（60 字內，不要寫名字）', 'aria-label': '理由' });
+    parts.push(el('p', { class: 'small muted', style: 'margin:4px 0' }, '理由只會出現在老師的畫面，不會公開。'), reason, el('div', { style: 'height:12px' }));
+  }
+  parts.push(btn);
+  app.replaceChildren(...parts);
+  renderOptions(opts, id => { pick = id; btn.disabled = false; btn.textContent = `送出：${nameOf(id)}`; }, null, round === 2);
+  btn.onclick = async () => {
+    if (!pick || busy) return;
+    busy = true; btn.disabled = true; setErr('');
+    try {
+      await api(`/api/room/${code}/vote`, { body: { device: dev, round, choice: pick, reason: reason ? reason.value : '' } });
+      await poll(true);
+    } catch (e) { setErr(e.message); btn.disabled = false; if (e.code === 'wrong_round' || e.code === 'closed') poll(true); }
+    busy = false;
+  };
+}
+
+function waiting(title, msg) {
+  return [el('p', { class: 'question' }, title), el('p', { class: 'hint' }, msg)];
+}
+
+function render() {
+  const s = state, v1 = s.voted[1], v2 = s.voted[2];
+  if (s.label) $('kicker').textContent = `〈三花之戰〉課堂投票・${s.label}`;
+  if (s.phase === 'r1') {
+    if (!v1) return voteForm(1);
+    return app.replaceChildren(el('div', { class: 'ok-badge' }, '已收到'),
+      ...waiting(`你選了${FLOWER[v1].flower}。`, '等老師公布全班的結果。'));
+  }
+  if (s.phase === 'r2' && !v2) return voteForm(2);
+
+  const nodes = [];
+  if (s.phase === 'r1_result') {
+    nodes.push(el('div', { class: 'ok-badge' }, '第一輪結果'),
+      el('p', { class: 'question' }, '我們班 vs 全網'));
+  } else if (s.phase === 'r2') {
+    nodes.push(el('div', { class: 'ok-badge' }, '已收到'),
+      ...waiting(v2 === 'think' ? '你選了「我還在想」。' : `第二輪你選了${FLOWER[v2].flower}。`, '等老師公布第二輪。'));
+  } else {
+    let msg = '第二輪你沒有投。';
+    if (v2 === 'think') msg = v1 ? `第一輪你選${FLOWER[v1].flower}，現在你還在想。還在想，也是一種誠實。` : '你選了「我還在想」。';
+    else if (v2 && v1) msg = v1 === v2 ? `你兩輪都選${FLOWER[v1].flower}。` : `你從${FLOWER[v1].flower}換成了${FLOWER[v2].flower}。`;
+    else if (v2) msg = `第二輪你選了${FLOWER[v2].flower}。`;
+    nodes.push(el('div', { class: 'ok-badge' }, '第二輪結果'), el('p', { class: 'question' }, msg));
+  }
+  const bars = el('div');
+  const card = el('div', { class: 'card' }, bars);
+  nodes.push(card);
+  app.replaceChildren(...nodes);
+  const groups = [{ label: '我們班', counts: s.class1 }, { label: '全網', counts: s.global, cls: 'global' }];
+  if (s.phase === 'r2_result') groups.splice(0, 1, { label: '第一輪', counts: s.class1, cls: 'r1' }, { label: '第二輪', counts: s.class2 });
+  renderBars(bars, groups);
+  if (s.phase === 'r1_result') app.append(el('p', { class: 'hint' }, '等老師開第二輪。'));
+}
+
+async function poll(force) {
+  try {
+    const s = await api(`/api/room/${code}?device=${dev}`);
+    state = s; setErr('');
+    const key = JSON.stringify([s.phase, s.voted, s.class1, s.class2]);
+    // 學生正在選或打字時，階段沒變就不重畫
+    const composing = (s.phase === 'r1' && !s.voted[1]) || (s.phase === 'r2' && !s.voted[2]);
+    if (force || key !== lastKey) {
+      if (!(composing && lastKey && JSON.parse(lastKey)[0] === s.phase && !force)) render();
+      lastKey = key;
+    }
+  } catch (e) {
+    setErr(e.message);
+    if (e.code === 'no_room') { clearTimeout(timer); timer = null; enterCode(); return; }
+  }
+}
+
+function loop() {
+  clearTimeout(timer);
+  timer = setTimeout(async () => { if (!document.hidden) await poll(); loop(); }, 4000);
+}
+
+if (code.length !== 6) enterCode();
+else { poll(true); loop(); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); }); }
+</script>
+</body>
+</html>

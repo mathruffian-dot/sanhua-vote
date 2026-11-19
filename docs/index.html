@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三花之戰 投票</title>
+<meta name="description" content="看完〈三花之戰〉：菊、牡丹、蓮，你認同哪一種活法？投完就能看到全網的票數。">
+<meta property="og:title" content="〈三花之戰〉你認同哪一種活法？">
+<meta property="og:description" content="菊、牡丹、蓮，投完就能看到全網的票數。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/config.js"></script>
+</head>
+<body>
+<main class="wrap">
+  <div class="kicker">〈愛蓮說〉延伸・饒舌對決</div>
+  <h1>〈三花之戰〉</h1>
+
+  <section id="vote">
+    <p class="question">周敦頤選了蓮。<br>你認同哪一種活法？</p>
+    <p class="hint">先別看旁邊的人，自己選。投完才看得到大家的選擇。</p>
+    <div class="options" id="options"></div>
+    <div id="turnstile"></div>
+    <div class="err" id="err" role="alert"></div>
+    <button class="btn block" id="submit" disabled>選一朵花</button>
+  </section>
+
+  <section id="result" hidden>
+    <p class="question" id="mine"></p>
+    <div class="card">
+      <h2>全網目前的選擇</h2>
+      <div id="bars"></div>
+      <p class="muted small" id="total"></p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost small" id="refresh">更新票數</button>
+      <a class="btn ghost small" id="video" hidden target="_blank" rel="noopener">回去看影片</a>
+    </div>
+    <p class="hint" style="margin-top:18px">想一想：周敦頤說「牡丹之愛，宜乎眾矣」。票最多的，就一定是對的嗎？</p>
+  </section>
+
+  <footer>
+    網路投票，每台裝置一票，不是科學調查。不收姓名、不用登入。<br>
+    老師要在課堂上用？<a href="class/">課堂版（班級兩輪投票）</a>
+  </footer>
+</main>
+
+<script src="assets/common.js"></script>
+<script>
+let picked = null, token = '';
+const $ = id => document.getElementById(id);
+const dev = deviceId();
+
+if (CFG.VIDEO_URL) { $('video').href = CFG.VIDEO_URL; $('video').hidden = false; }
+
+function showResult(choice, counts) {
+  $('vote').hidden = true; $('result').hidden = false;
+  const t = total(counts), f = FLOWER[choice];
+  $('mine').textContent = `你選了${f.flower}，跟全網 ${pct(counts[choice], t)}% 的人一樣。`;
+  renderBars($('bars'), [{ label: '全網', counts }]);
+  $('total').textContent = `目前共 ${t.toLocaleString()} 人投票`;
+}
+
+renderOptions($('options'), id => {
+  picked = id;
+  $('submit').disabled = false;
+  $('submit').textContent = `投給${FLOWER[id].flower}`;
+});
+
+$('submit').addEventListener('click', async () => {
+  if (!picked) return;
+  $('submit').disabled = true; $('err').textContent = '';
+  try {
+    const r = await api('/api/vote', { body: { device: dev, choice: picked, token } });
+    store('sanhua_public_choice', r.choice);
+    showResult(r.choice, r.counts);
+  } catch (e) {
+    $('err').textContent = e.message;
+    $('submit').disabled = false;
+    if (window.turnstile) { try { turnstile.reset(); } catch {} token = ''; }
+  }
+});
+
+$('refresh').addEventListener('click', async () => {
+  try { const r = await api('/api/results?device=' + dev); if (r.voted) showResult(r.choice, r.counts); } catch (e) { alert(e.message); }
+});
+
+// 投過的裝置直接看結果
+(async () => {
+  try {
+    const r = await api('/api/results?device=' + dev);
+    if (r.voted) return showResult(r.choice, r.counts);
+  } catch {}
+  if (CFG.TURNSTILE_SITEKEY) {
+    window.onTurnstileLoad = () => turnstile.render('#turnstile', {
+      sitekey: CFG.TURNSTILE_SITEKEY, language: 'zh-tw', appearance: 'interaction-only',
+      callback: t => { token = t; }, 'expired-callback': () => { token = ''; },
+    });
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
+    s.async = true; document.head.append(s);
+  }
+})();
+</script>
+</body>
+</html>

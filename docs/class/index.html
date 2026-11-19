@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三花之戰 課堂版</title>
+<meta name="description" content="老師開房間，全班用手機投兩輪：先投、公布「我們班 vs 全網」、討論、再投，看誰改了想法。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;800&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/config.js"></script>
+</head>
+<body>
+<main class="wrap" id="main">
+  <div class="kicker">〈三花之戰〉課堂版・老師用</div>
+  <div id="app"></div>
+  <div class="err" id="err" role="alert"></div>
+</main>
+<div class="qr-full" id="qrfull" role="dialog" aria-label="放大的 QR code">
+  <div><div class="qr" id="qrbig"></div><div class="bigcode" id="qrbigcode"></div><p>點一下關閉</p></div>
+</div>
+
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const app = $('app');
+const STEPS = [['r1', '1 第一輪投票'], ['r1_result', '2 公布：班 vs 全網'], ['r2', '3 第二輪投票'], ['r2_result', '4 公布：改票流向']];
+let code = (new URLSearchParams(location.search).get('room') || '').replace(/\D/g, '').slice(0, 6);
+let key = '', data = null, lastKey = '', timer = null, showReasons = false;
+
+function setErr(m) { $('err').textContent = m || ''; }
+function rooms() { try { return JSON.parse(store('sanhua_rooms') || '[]'); } catch { return []; } }
+function saveRoom(r) { const list = rooms().filter(x => x.code !== r.code); list.unshift(r); store('sanhua_rooms', JSON.stringify(list.slice(0, 30))); }
+const joinUrl = c => new URL('../join/?r=' + c, location.href).href;
+const ctrlUrl = () => new URL('?room=' + code + '#key=' + key, location.href).href;
+
+// ---------- 首頁：開房間 ----------
+function landing() {
+  $('main').classList.remove('wide');
+  const label = el('input', { type: 'text', maxlength: '20', placeholder: '例如：八年三班（可不填）', 'aria-label': '班級名稱' });
+  const btn = el('button', { class: 'btn' }, '開一個房間');
+  btn.onclick = async () => {
+    btn.disabled = true; setErr('');
+    try {
+      const r = await api('/api/room', { body: { label: label.value } });
+      saveRoom({ code: r.code, key: r.key, label: label.value.trim(), created: Date.now() });
+      location.href = '?room=' + r.code;
+    } catch (e) { setErr(e.message); btn.disabled = false; }
+  };
+  const mine = rooms().filter(r => Date.now() - r.created < 30 * 86400000);
+  app.replaceChildren(
+    el('h1', {}, '班級兩輪投票'),
+    el('p', { class: 'hint', style: 'margin-top:10px' }, '看完〈三花之戰〉，全班用手機投票。學生不用登入、不填名字。'),
+    el('p', {}, el('a', { class: 'btn ghost small', href: 'guide.html' }, '第一次用？看〈愛蓮說〉× SEL 教師手冊（45 分鐘流程）')),
+    el('div', { class: 'card' },
+      el('h2', {}, '上課流程'),
+      el('ol', { style: 'margin:0;padding-left:1.3em' },
+        el('li', {}, '老師開房間，投影 QR code，學生掃碼投第一輪（看不到票數）。'),
+        el('li', {}, '老師按「公布」，投影「我們班 vs 全網」。'),
+        el('li', {}, '分組討論後，老師開第二輪，學生再投一次，可以寫一句理由。'),
+        el('li', {}, '老師公布第二輪：誰從哪朵花換到哪朵花（匿名）。'))),
+    el('div', { class: 'card' },
+      el('h2', {}, '開房間'), label, el('div', { style: 'height:12px' }), btn,
+      el('p', { class: 'small muted', style: 'margin:10px 0 0' }, '班上的票不會算進全網統計。房間 30 天後自動關閉。')),
+    mine.length ? el('div', { class: 'card' }, el('h2', {}, '我開過的房間（這台電腦）'),
+      ...mine.map(r => el('p', { style: 'margin:6px 0' }, el('a', { href: '?room=' + r.code }, `${r.code}${r.label ? '・' + r.label : ''}`),
+        el('span', { class: 'muted small' }, '　' + new Date(r.created).toLocaleString('zh-TW'))))) : null,
+    el('footer', {}, el('a', { href: '../' }, '← 全網投票頁')));
+}
+
+// ---------- 房間：投影畫面 ----------
+function steps(phase) {
+  const i = STEPS.findIndex(s => s[0] === phase);
+  return el('ol', { class: 'steps' }, ...STEPS.map(([p, t], j) => el('li', { class: j === i ? 'now' : j < i ? 'done' : '' }, t)));
+}
+
+async function go(to) {
+  setErr('');
+  try { await api(`/api/room/${code}/advance`, { body: { key, to } }); await poll(true); } catch (e) { setErr(e.message); }
+}
+
+function joinBox() {
+  const qr = el('div', { class: 'qr' }, qrImg(joinUrl(code), 8));
+  const box = el('div', { class: 'card joinbox' },
+    el('div', { class: 'muted' }, '學生用手機掃'), qr,
+    el('div', { class: 'bigcode' }, code),
+    el('div', { class: 'small muted', style: 'word-break:break-all' }, joinUrl(code).replace(/^https?:\/\//, '')),
+    el('div', { class: 'actions', style: 'justify-content:center' },
+      el('button', { class: 'btn ghost small', onclick: openQr }, '放大 QR'),
+      el('button', { class: 'btn ghost small', onclick: copyCtrl }, '複製控制網址')));
+  return box;
+}
+
+function openQr() {
+  $('qrbig').replaceChildren(qrImg(joinUrl(code), 12));
+  $('qrbigcode').textContent = code;
+  $('qrfull').classList.add('show');
+}
+$('qrfull').onclick = () => $('qrfull').classList.remove('show');
+
+async function copyCtrl() {
+  const u = ctrlUrl();
+  try { await navigator.clipboard.writeText(u); alert('已複製。用這個網址可以在另一台裝置（例如手機）控制這個房間。\n請不要投影或傳給學生。'); }
+  catch { prompt('控制網址（不要投影或傳給學生）：', u); }
+}
+
+function flowList(d) {
+  const items = [], same = [];
+  for (const a of FLOWERS) for (const b of [...FLOWERS, THINK]) {
+    const n = d.flow[a.id][b.id];
+    if (!n) continue;
+    if (a.id === b.id) same.push(n); else items.push({ a, b, n });
+  }
+  items.sort((x, y) => y.n - x.n);
+  const stay = same.reduce((s, n) => s + n, 0);
+  const late = total(d.flowNew);
+  const box = el('div', { class: 'flow' });
+  if (!items.length) box.append(el('p', { class: 'muted', style: 'margin:0' }, '沒有人改票。'));
+  for (const { a, b, n } of items) box.append(el('div', { class: 'f' },
+    el('span', { class: `tag c-${a.id}` }, a.flower), '→', el('span', { class: `tag c-${b.id}` }, nameOf(b.id)), el('span', { class: 'n' }, `${n} 人`)));
+  box.append(el('p', { class: 'muted', style: 'margin:6px 0 0' }, `沒換的 ${stay} 人` + (late ? `，第二輪才加入 ${late} 人` : '')));
+  return box;
+}
+
+function reasonList(d) {
+  const wrap = el('div');
+  const toggle = el('button', { class: 'btn ghost small' }, showReasons ? '收起理由' : `顯示理由（${d.reasons.length} 則）`);
+  toggle.onclick = () => { showReasons = !showReasons; render(true); };
+  wrap.append(toggle);
+  if (!showReasons) return wrap;
+  const list = el('div', { class: 'reasons', style: 'margin-top:12px' });
+  for (const r of d.reasons) {
+    const f = FLOWER[r.choice];
+    const hide = el('button', {}, r.hidden ? '顯示' : '藏起來');
+    hide.onclick = async () => {
+      try { await api(`/api/room/${code}/hide`, { body: { key, id: r.id, hidden: !r.hidden } }); await poll(true); } catch (e) { setErr(e.message); }
+    };
+    const from = r.from && r.from !== r.choice ? `${FLOWER[r.from].flower}→` : '';
+    list.append(el('div', { class: `reason c-${r.choice}${r.hidden ? ' hid' : ''}` },
+      el('strong', {}, from + nameOf(r.choice)), el('p', {}, r.hidden ? '（已藏起來）' : r.reason), hide));
+  }
+  if (!d.reasons.length) list.append(el('p', { class: 'muted' }, '還沒有人寫理由。'));
+  wrap.append(list);
+  return wrap;
+}
+
+function panel(d) {
+  const p = el('div', { class: 'card' });
+  if (d.phase === 'r1') {
+    p.append(el('h2', {}, '第一輪投票中'),
+      el('div', { class: 'counter' }, d.n1), el('p', { class: 'muted' }, '人已投（票數先不公布）'),
+      el('p', {}, '題目：周敦頤選了蓮。你認同哪一種活法？'),
+      el('div', { class: 'actions' }, el('button', { class: 'btn', onclick: () => go('r1_result'), disabled: d.n1 === 0 }, '公布第一輪結果')));
+  } else if (d.phase === 'r1_result') {
+    const bars = el('div');
+    p.append(el('h2', {}, '我們班 vs 全網'),
+      el('div', { class: 'legend' }, `我們班 ${d.n1} 人`, `全網 ${total(d.global).toLocaleString()} 人（公布當下）`), bars,
+      el('div', { class: 'card', style: 'margin-bottom:0' },
+        el('strong', {}, '可以問全班'),
+        el('ul', { style: 'margin:6px 0 0;padding-left:1.2em' },
+          el('li', {}, '我們班最多人選的，跟全網一樣嗎？為什麼？'),
+          el('li', {}, '周敦頤說「牡丹之愛，宜乎眾矣」。票最多的，就一定是對的嗎？'),
+          el('li', {}, '選得最少的那朵花，有沒有人願意替它說一句話？'))),
+      el('div', { class: 'actions' },
+        el('button', { class: 'btn', onclick: () => go('r2') }, '開第二輪'),
+        el('button', { class: 'btn ghost small', onclick: () => go('r1') }, '退回：繼續收第一輪')));
+    renderBars(bars, [{ label: '我們班', counts: d.class1 }, { label: '全網', counts: d.global, cls: 'global' }]);
+  } else if (d.phase === 'r2') {
+    p.append(el('h2', {}, '第二輪投票中'),
+      el('div', { class: 'counter' }, `${d.n2}`, el('span', { class: 'muted', style: 'font-size:28px' }, ` / ${d.n1}`)),
+      el('p', { class: 'muted' }, '人已投第二輪（多了「我還在想」；學生可以寫一句理由，只有這個畫面看得到）'),
+      el('div', { class: 'actions' },
+        el('button', { class: 'btn', onclick: () => go('r2_result'), disabled: d.n2 === 0 }, '公布第二輪結果'),
+        el('button', { class: 'btn ghost small', onclick: () => go('r1_result') }, '退回：第一輪結果')));
+  } else {
+    const bars = el('div');
+    const changed = Object.entries(d.flow).reduce((s, [a, row]) => s + Object.entries(row).reduce((t, [b, n]) => t + (a !== b ? n : 0), 0), 0);
+    p.append(el('h2', {}, `第二輪結果：${changed} 人改了想法`),
+      el('div', { class: 'two' },
+        el('div', {}, el('div', { class: 'legend' }, '我們班：第一輪 → 第二輪'), bars),
+        el('div', {}, el('div', { class: 'legend' }, '改票流向（匿名）'), flowList(d))),
+      el('div', { style: 'margin-top:18px' }, reasonList(d)),
+      el('div', { class: 'actions' },
+        el('button', { class: 'btn ghost small', onclick: downloadPng }, '下載結果圖'),
+        el('button', { class: 'btn ghost small', onclick: () => go('r2') }, '退回：繼續收第二輪')));
+    renderBars(bars, [{ label: '第一輪', counts: d.class1, cls: 'r1' }, { label: '第二輪', counts: d.class2 }]);
+  }
+  return p;
+}
+
+function render(force) {
+  const d = data;
+  $('main').classList.add('wide');
+  app.replaceChildren(
+    el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap' },
+      el('h1', {}, d.label || '班級投票'), el('a', { href: './', class: 'small' }, '開新房間')),
+    el('div', { style: 'height:14px' }),
+    el('div', { class: 'stage' }, joinBox(), el('div', {}, steps(d.phase), panel(d))));
+}
+
+// ---------- 下載結果圖 ----------
+function downloadPng() {
+  const d = data, W = 1600, H = 900, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const col = { ju: '#b0802a', mudan: '#a3343f', lian: '#3b7a6b', think: '#6f7a8f' };
+  g.fillStyle = '#f4f0e6'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#2b2925'; g.font = '700 52px "Noto Serif TC", serif';
+  g.fillText('〈三花之戰〉班級投票' + (d.label ? '・' + d.label : ''), 70, 100);
+  g.font = '400 26px "Noto Sans TC", sans-serif'; g.fillStyle = '#6b665c';
+  g.fillText(`${new Date(d.created_at).toLocaleDateString('zh-TW')}　周敦頤選了蓮。你認同哪一種活法？`, 70, 148);
+  const groups = [['第一輪', d.class1, 0.45], ['第二輪', d.class2, 1], ['全網', d.global, -1]];
+  let y = 210;
+  const rowsP = d.class2.think ? [...FLOWERS, THINK] : FLOWERS;
+  const gap = rowsP.length > 3 ? 14 : 40;
+  for (const f of rowsP) {
+    g.fillStyle = '#2b2925'; g.font = '700 30px "Noto Sans TC", sans-serif';
+    g.fillText(f.id === 'think' ? f.who : `${f.flower}・${f.who}`, 70, y);
+    y += 16;
+    for (const [lab, cnt, a] of groups) {
+      const t = total(cnt), n = cnt[f.id] || 0, w = t ? (n / t) * 760 : 0;
+      g.font = '400 22px "Noto Sans TC", sans-serif'; g.fillStyle = '#6b665c'; g.fillText(lab, 70, y + 22);
+      g.fillStyle = '#e4dece'; g.fillRect(170, y + 4, 760, 22);
+      g.fillStyle = a < 0 ? '#8a8476' : col[f.id]; g.globalAlpha = a < 0 ? 1 : a; g.fillRect(170, y + 4, w, 22); g.globalAlpha = 1;
+      g.fillStyle = '#2b2925'; g.fillText(`${pct(n, t)}%（${n}）`, 945, y + 22);
+      y += 32;
+    }
+    y += gap;
+  }
+  g.fillStyle = '#2b2925'; g.font = '700 32px "Noto Sans TC", sans-serif'; g.fillText('改票流向', 1150, 220);
+  let fy = 270; g.font = '400 28px "Noto Sans TC", sans-serif';
+  const rows = [];
+  for (const a of FLOWERS) for (const b of [...FLOWERS, THINK]) if (a.id !== b.id && d.flow[a.id][b.id]) rows.push([a, b, d.flow[a.id][b.id]]);
+  rows.sort((x, y2) => y2[2] - x[2]);
+  if (!rows.length) { g.fillText('沒有人改票', 1150, fy); fy += 44; }
+  for (const [a, b, n] of rows) { g.fillText(`${a.flower} → ${nameOf(b.id)}　${n} 人`, 1150, fy); fy += 44; }
+  const stay = FLOWERS.reduce((s, f) => s + d.flow[f.id][f.id], 0);
+  g.fillStyle = '#6b665c'; g.fillText(`沒換 ${stay} 人`, 1150, fy + 10);
+  g.font = '400 22px "Noto Sans TC", sans-serif';
+  g.fillText(`我們班 ${d.n1} 人投第一輪、${d.n2} 人投第二輪；全網 ${total(d.global).toLocaleString()} 人（公布當下）`, 70, H - 50);
+  const a = document.createElement('a');
+  a.download = `三花之戰_班級投票_${code}.png`; a.href = c.toDataURL('image/png'); a.click();
+}
+
+// ---------- 輪詢 ----------
+async function poll(force) {
+  try {
+    const d = await api(`/api/room/${code}/teacher?key=${encodeURIComponent(key)}`);
+    data = d; setErr('');
+    const k = JSON.stringify([d.phase, d.n1, d.n2, d.class1, d.class2, d.reasons, d.global]);
+    if (force || k !== lastKey) { render(); lastKey = k; }
+  } catch (e) {
+    setErr(e.message);
+    if (e.code === 'no_room' || e.code === 'not_teacher') { clearTimeout(timer); timer = null; if (!data) app.replaceChildren(el('p', {}, el('a', { href: './' }, '回到開房間'))); }
+  }
+}
+function loop() {
+  clearTimeout(timer);
+  timer = setTimeout(async () => { if (!document.hidden) await poll(); if (timer) loop(); }, 2500);
+}
+
+// 控制網址 #key=… → 存進這台電腦，再從網址列拿掉（避免投影時被學生看到）
+const hk = new URLSearchParams(location.hash.slice(1)).get('key');
+if (code && hk) { saveRoom({ code, key: hk, label: '', created: Date.now() }); history.replaceState(null, '', '?room=' + code); }
+if (!code) landing();
+else {
+  key = (rooms().find(r => r.code === code) || {}).key || '';
+  if (!key) { app.replaceChildren(el('p', {}, '這台電腦沒有這個房間的控制權。請用開房間的那台電腦，或用「複製控制網址」開啟。'), el('a', { href: './' }, '開新房間')); }
+  else { poll(true); loop(); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+name = "sanhua-vote"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+preview_urls = false
+
+[vars]
+# 前端網址（GitHub Pages）；本機測試的 localhost 一律放行
+ALLOWED_ORIGINS = "https://mathruffian-dot.github.io"
+# 公開投票：同一網路每小時最多幾票；開房間：每小時最多幾間
+PUBLIC_PER_HOUR = "120"
+ROOMS_PER_HOUR = "20"
+ROOM_DAYS = "30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sanhua-vote"
+database_id = "54e85e20-93b9-4bb1-9d79-8aa68bcb536f"
+
+# 秘密值用 `npx wrangler secret put` 設，不寫在這裡：
+#   IP_SALT           任意長字串（把 IP 雜湊掉，資料庫不存原始 IP）
+#   TURNSTILE_SECRET  Cloudflare Turnstile 的 secret（沒設就不檢查）
