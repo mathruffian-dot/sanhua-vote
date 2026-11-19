@@ -465,7 +465,7 @@ async function gameAnswer(req, env, code) {
   const joined = await playerCount(env, code);
   let revealed = false;
   if (game.auto_reveal && joined > 0 && done.n >= joined) {
-    const u = await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2").bind(code, game.qi).run();
+    const u = await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2 AND auto_reveal = 1").bind(code, game.qi).run();
     revealed = u.meta.changes === 1;
   }
   return json({ ok: true, revealed });
@@ -496,7 +496,7 @@ async function gameAdvance(req, env, code) {
     if (b.value && game.stage === 'q') {
       const done = await env.DB.prepare('SELECT COUNT(*) AS n FROM game_answers WHERE code = ?1 AND qi = ?2').bind(code, game.qi).first();
       const joined = await playerCount(env, code);
-      if (joined > 0 && done.n >= joined) await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2").bind(code, game.qi).run();
+      if (joined > 0 && done.n >= joined) await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2 AND auto_reveal = 1").bind(code, game.qi).run();
     }
     return json({ ok: true, auto: !!b.value });
   }

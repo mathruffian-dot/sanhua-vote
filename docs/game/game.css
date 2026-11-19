@@ -330,3 +330,5 @@ code.pre { white-space: pre-wrap; display: block; flex: 1 1 100%; }
 .rules.big { font-size: 22px; }
 body.teacher .t-qr img { image-rendering: pixelated; }
 @media (max-width: 520px) { .stepper button { font-size: 15px; gap: 4px; min-height: 52px; } .stepper .sn { width: 24px; height: 24px; } }
+.backup { display: flex; gap: 10px; align-items: center; margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ju) 10%, var(--paper)); font-weight: 700; cursor: pointer; }
+.backup input { width: 22px; height: 22px; accent-color: var(--ju); }

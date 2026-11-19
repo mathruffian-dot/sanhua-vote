@@ -6,8 +6,8 @@
 <title>今天，你是哪朵花？</title>
 <meta name="description" content="〈愛蓮說〉情境遊戲：每題三種做法，全班投完一起揭曉是哪朵花，最後做出自己的三花箋與 AI 花束。">
 <meta name="theme-color" content="#f4f0e6">
-<link rel="stylesheet" href="../../assets/style.css?v=20261120j">
-<link rel="stylesheet" href="../game.css?v=20261120j">
+<link rel="stylesheet" href="../../assets/style.css?v=20261120k">
+<link rel="stylesheet" href="../game.css?v=20261120k">
 <script src="../../assets/config.js"></script>
 </head>
 <body class="g-body">
@@ -19,8 +19,8 @@
   <div><img id="sheetImg" alt="我的三花箋"><p><b>長按圖片 → 選「加入照片」</b></p><p class="small">存好之後，點下面的按鈕回去</p><button class="btn" id="sheetClose" type="button">回去</button></div>
 </div>
 
-<script src="../../assets/common.js?v=20261120j"></script>
-<script src="../scenes.js?v=20261120j"></script>
+<script src="../../assets/common.js?v=20261120k"></script>
+<script src="../scenes.js?v=20261120k"></script>
 <script>
 const $ = id => document.getElementById(id);
 const app = $('app');
@@ -240,7 +240,7 @@ const END_KEY = () => 'game_end_' + code;
 let endState = null;
 function loadEnd() {
   try { endState = JSON.parse(store(END_KEY()) || 'null'); } catch { endState = null; }
-  endState = Object.assign({ w1: '', w2: '', qref: -1, w3: '', style: 'gongbi', wrap: 'paper', lang: 'zh', step: 1, allStyles: false, checks: {} }, endState || {});
+  endState = Object.assign({ w1: '', w2: '', qref: -1, why: '', w3: '', backup: false, style: 'gongbi', wrap: 'paper', lang: 'zh', step: 1, allStyles: false, checks: {} }, endState || {});
 }
 function saveEnd() { store(END_KEY(), JSON.stringify(endState)); }
 
@@ -279,6 +279,7 @@ function renderEnd() {
   const w2 = el('input', { type: 'text', class: 'w2', maxlength: '20', placeholder: '出淤泥而不染', 'aria-label': '它的特質', value: endState.w2 });
   const qsel = el('select', { class: 'qsel', 'aria-label': '想到第幾題' }, ...st.deck.map((id, i) => el('option', { value: String(i), selected: i === endState.qref }, `第 ${i + 1} 題〈${SCENE[id].title}〉`)));
   const qopt = el('div', { class: 'qopt' });
+  const why = el('input', { type: 'text', maxlength: '24', placeholder: '例如：不想讓被酸的人更難過', 'aria-label': '因為當時我想', value: endState.why });
   const w3 = el('input', { type: 'text', maxlength: '24', placeholder: '例如：先聽完大家的想法再說', 'aria-label': '如果再遇到一次，我想試著', value: endState.w3 });
   const prev = el('img', { alt: '我的三花箋預覽', width: '1080', height: '1440' });
   const saveBtn = el('button', { class: 'btn lian', type: 'button' }, '分享／儲存花箋');
@@ -320,27 +321,34 @@ function renderEnd() {
   copyT.addEventListener('click', () => copy(titleCode.textContent, copyT, '複製標題'));
   copyB.addEventListener('click', () => copy(bodyCode.textContent, copyB, '複製內文'));
   const padBox = el('div', { id: 'padBox' });
+  const copyP2 = el('button', { class: 'btn small mudan', type: 'button' }, '重新複製花束提示詞');
+  copyP2.addEventListener('click', () => copy(pbox.value, copyP2, '重新複製花束提示詞'));
   const reviewText = '【我看到】你的花譜記錄＿＿，你用「＿＿」描寫它。\n【我欣賞】這句讓我想到課文的＿＿，因為＿＿。\n【我好奇】如果情境改成＿＿，你還會這樣選嗎？';
   const copyR = el('button', { class: 'btn small', type: 'button' }, '複製互評格式');
   copyR.addEventListener('click', () => copy(reviewText, copyR, '複製互評格式'));
-  const CHECKS = [['text', '貼上標題和內文'], ['ai', '用 AI 生出花束、檢查花的種類和數量'], ['card', '在自己的貼文留言附上花箋'], ['r1', `回應了 ${st.me.seat + 1} 號（或下一位）同學`], ['r2', '再回應一位自己選的同學']];
-  const checks = el('div', { class: 'checks' }, ...CHECKS.map(([k, t]) => {
+  const CHECKS_AI = [['text', '貼上標題和內文'], ['ai', '用 AI 生出花束、檢查花的種類和數量'], ['card', '在自己的貼文留言附上花箋'], ['r1', `回應了 ${st.me.seat + 1} 號（或下一位）同學`], ['r2', '再回應一位自己選的同學']];
+  const CHECKS_BK = [['text', '貼上標題和內文'], ['cardpost', '花箋已經當作貼文的附件'], ['whole', '確認花箋的圖和文字都完整'], ['r1', `回應了 ${st.me.seat + 1} 號（或下一位）同學`], ['r2', '再回應一位自己選的同學']];
+  const checks = el('div', { class: 'checks' });
+  const backup = el('input', { type: 'checkbox', checked: !!endState.backup });
+  const doneMsg = el('div', { class: 'done-msg', role: 'status' });
+  const list = () => endState.backup ? CHECKS_BK : CHECKS_AI;
+  const doneN = () => { const L = list(), n = L.filter(([k]) => endState.checks[k]).length; doneMsg.textContent = n === L.length ? '五件事都完成了，謝謝你！' : `完成 ${n} / ${L.length}`; };
+  const drawChecks = () => checks.replaceChildren(...list().map(([k, t]) => {
     const c = el('input', { type: 'checkbox', checked: !!endState.checks[k] });
     c.addEventListener('change', () => { endState.checks[k] = c.checked; saveEnd(); doneN(); });
     return el('label', {}, c, el('span', {}, t));
   }));
-  const doneMsg = el('div', { class: 'done-msg', role: 'status' });
-  const doneN = () => { const n = CHECKS.filter(([k]) => endState.checks[k]).length; doneMsg.textContent = n === CHECKS.length ? '五件事都完成了，謝謝你！' : `完成 ${n} / ${CHECKS.length}`; };
-
+  backup.addEventListener('change', () => { endState.backup = backup.checked; saveEnd(); drawChecks(); doneN(); });
+  drawChecks();
   const blank = (v, d) => (v || '').trim() || d;
   function sentence() { return `予獨愛${blank(w1.value, '＿＿')}之${blank(w2.value, '＿＿＿＿')}`; }
   function refLine() {
     const i = Number(qsel.value), o = myOpt(i);
-    return `這讓我想到第 ${i + 1} 題〈${SCENE[st.deck[i]].title}〉` + (o ? `，我選了「${o.text}」` : '');
+    return `這讓我想到第 ${i + 1} 題〈${SCENE[st.deck[i]].title}〉` + (o ? `，我選了「${o.text}」` : '') + (why.value.trim() ? `，因為當時我想${why.value.trim()}` : '');
   }
   function tryLine() { return `如果再遇到一次，我想試著${blank(w3.value, '＿＿＿＿')}`; }
   function changed() {
-    endState.w1 = w1.value; endState.w2 = w2.value; endState.qref = Number(qsel.value); endState.w3 = w3.value; saveEnd();
+    endState.w1 = w1.value; endState.w2 = w2.value; endState.qref = Number(qsel.value); endState.why = why.value; endState.w3 = w3.value; saveEnd();
     const o = myOpt(Number(qsel.value));
     qopt.textContent = o ? `你那題選的是：${o.text}` : '這題你沒有作答，可以換一題。';
     const bq = bouquet(S.counts, S.hits / Math.max(1, st.deck.length), endState.style, endState.wrap);
@@ -354,7 +362,7 @@ function renderEnd() {
     const ver = ++cardVer;
     changed.t = setTimeout(async () => { syncCard(); const u = await cardUrl(); if (ver === cardVer) prev.src = u; }, 250);
   }
-  [w1, w2, w3].forEach(x => x.addEventListener('input', changed));
+  [w1, w2, why, w3].forEach(x => x.addEventListener('input', changed));
   qsel.addEventListener('change', changed);
 
   // ---- 版面 ----
@@ -370,7 +378,8 @@ function renderEnd() {
     el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '2'), '寫下你的花箋', el('small', {}, '三句話，會印在花箋上')),
       el('div', { class: 'field' }, el('div', { class: 'flabel' }, '① 仿寫〈愛蓮說〉'), el('div', { class: 'fang' }, '予獨愛', w1, '之', w2, '。'),
         el('p', { class: 'examples' }, '可以寫課文裡的花，也可以寫別的花或東西，例如：', el('b', {}, '予獨愛竹之風吹而不折'), '、', el('b', {}, '予獨愛向日葵之總是面向光'), '。')),
-      el('div', { class: 'field' }, el('div', { class: 'flabel' }, '② 這個特質讓我想到哪一題？'), qsel, qopt),
+      el('div', { class: 'field' }, el('div', { class: 'flabel' }, '② 這個特質讓我想到哪一題？'), qsel, qopt,
+        el('div', { class: 'because' }, el('span', {}, '因為當時我想'), why)),
       el('div', { class: 'field' }, el('div', { class: 'flabel' }, '③ 如果再遇到一次，我想試著……'), w3)),
     el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '3'), '存下你的花箋'),
       el('div', { class: 'card-prev' }, prev, el('div', { class: 'btn-row' }, saveBtn)),
@@ -390,8 +399,8 @@ function renderEnd() {
         el('li', {}, el('div', {}, el('b', {}, '打開班上的 Padlet，按「＋」新增一則貼文'), padBox)),
         el('li', {}, el('div', {}, el('b', {}, '標題、內文貼上這兩段'),
           el('div', { class: 'copyline' }, titleCode, copyT), el('div', { class: 'copyline' }, bodyCode, copyB))),
-        el('li', {}, el('div', {}, el('b', {}, '附件選 Padlet 的 AI 生圖，貼上做花束那一步的提示詞'), el('span', { class: 'small muted' }, '在附件選單裡找「AI 圖像」或「我不會畫畫」。生成後檢查花的種類和數量，挑一張喜歡的再發布。'))),
-        el('li', {}, el('div', {}, el('b', {}, '在自己的貼文按「留言」，附上存好的花箋'), el('span', { class: 'small muted' }, '這個活動把花束放貼文、花箋放留言，方便同學分開看。AI 生圖暫時不能用的話，先把花箋當附件發文，互評照常。'))))),
+        el('li', {}, el('div', {}, el('b', {}, '附件選 Padlet 的 AI 生圖，貼上花束提示詞'), el('div', { class: 'copyline' }, copyP2, el('span', { class: 'small muted' }, '剛才複製過標題、內文，提示詞要再複製一次')), el('span', { class: 'small muted' }, '在附件選單裡找「AI 圖像」或「我不會畫畫」。生成後檢查花的種類和數量，挑一張喜歡的再發布。'))),
+        el('li', {}, el('div', {}, el('b', {}, '在自己的貼文按「留言」，按留言框旁的＋，上傳存好的花箋'), el('span', { class: 'small muted' }, '這個活動把花束放貼文、花箋放留言，方便同學分開看。AI 生圖暫時不能用的話，先把花箋當附件發文，互評照常（下面的清單勾「改用花箋備案」）。'))))),
     el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '2'), '去看同學的花束，用這個格式留言', el('small', {}, '至少回應 2 位')),
       el('div', { class: 'review' },
         el('div', { class: 'c-ju' }, el('b', {}, '【我看到】'), '你的花譜記錄＿＿，你用「＿＿」描寫它。'),
@@ -402,7 +411,8 @@ function renderEnd() {
         el('li', {}, '不評畫得美不美，不說哪種花比較好；看花譜數字和文字，不看 AI 有沒有畫對。'),
         el('li', {}, '被留言的人，可以回「謝謝，其實是因為＿＿」，也可以回「這部分我想保留」。')),
       el('div', { class: 'btn-row', style: 'margin-top:12px' }, copyR)),
-    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '✓'), '完成清單', el('small', {}, '做完一件勾一件')), checks, doneMsg),
+    el('section', { class: 'paper' }, el('h2', { class: 'sec-title' }, el('span', { class: 'no' }, '✓'), '完成清單', el('small', {}, '做完一件勾一件')),
+      el('label', { class: 'backup' }, backup, el('span', {}, 'AI 生圖不能用，改用花箋備案')), checks, doneMsg),
     nav(3));
 
   function go(i) {
@@ -497,7 +507,8 @@ async function drawCard() {
   x.fillStyle = '#a3343f'; x.fillRect(W / 2 - 60, 700, 120, 4);
   // 仿寫句：先照標點分段，再依寬度排行；超過三行就縮字
   const text = d.sentence.replace(/[。．.！!？?]*$/, '') + '。', maxW = W - 220;
-  const segs = text.match(/[^，、；：,;:。]+[，、；：,;:。]?/g) || [text];
+  const head = (text.match(/^予獨愛[^之]{0,8}之/) || [''])[0];
+  const segs = (head ? [head] : []).concat(text.slice(head.length).match(/[^，、；：,;:。]+[，、；：,;:。]?/g) || []);
   let fs = 76, lines;
   for (;;) {
     x.font = `700 ${fs}px ${SERIF}`;

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>今天，你是哪朵花？ 老師版</title>
 <meta name="description" content="〈愛蓮說〉情境遊戲老師控制台：開一局、投影情境、全班答完一起揭曉，最後學生做三花箋與 AI 花束、貼到 Padlet 互評。">
-<link rel="stylesheet" href="../assets/style.css?v=20261120j">
-<link rel="stylesheet" href="game.css?v=20261120j">
+<link rel="stylesheet" href="../assets/style.css?v=20261120k">
+<link rel="stylesheet" href="game.css?v=20261120k">
 <script src="../assets/config.js"></script>
 </head>
 <body class="g-body">
@@ -19,8 +19,8 @@
 </div>
 
 <script src="../assets/qrcode.js"></script>
-<script src="../assets/common.js?v=20261120j"></script>
-<script src="scenes.js?v=20261120j"></script>
+<script src="../assets/common.js?v=20261120k"></script>
+<script src="scenes.js?v=20261120k"></script>
 <script>
 const $ = id => document.getElementById(id);
 const app = $('app');
@@ -271,7 +271,8 @@ function renderEnd() {
           el('li', {}, el('div', {}, el('b', {}, '發布互評'), 'Padlet 發文，附件用 AI 生圖；花箋貼在自己貼文的留言。AI 生圖不能用時，先用花箋當附件')))),
       el('div', { class: 'paper', style: 'margin:0;text-align:center' },
         el('h2', { class: 'sec-title' }, '班上的 Padlet'), padQr,
-        el('div', { style: 'display:grid;gap:8px;margin-top:12px;text-align:left' }, pad, padSave, padMsg))));
+        el('div', { style: 'display:grid;gap:8px;margin-top:12px;text-align:left' }, pad, padSave, padMsg),
+        el('p', { class: 'fine', style: 'text-align:left' }, '課前在 Padlet 設定確認：訪客可以發文、留言開啟，而且「留言可以上傳附件」也要打開，學生才貼得上花箋。'))));
   pages[3] = el('div', { class: 'end-page' },
     el('div', { class: 'paper' },
       el('h2', { class: 'sec-title' }, '互評格式', el('small', {}, '每人至少回應 2 位同學')),
