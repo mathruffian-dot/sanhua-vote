@@ -2,7 +2,7 @@
 window.SANHUA_CONFIG = {
   API: 'https://sanhua-vote.mathruffian-teaching.workers.dev',
   TURNSTILE_SITEKEY: '',
-  VIDEO_URL: '',
+  VIDEO_URL: 'https://youtu.be/sRW9XTxGd1k',
 };
 // 本機測試：localhost 開的頁面一律連本機 Worker
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
