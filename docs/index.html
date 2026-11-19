@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" as="image" href="assets/img/hero-800.webp" imagesrcset="assets/img/hero-800.webp 800w, assets/img/hero-1600.webp 1600w" imagesizes="100vw">
-<link rel="stylesheet" href="assets/style.css?v=20261119">
+<link rel="stylesheet" href="assets/style.css?v=20261119b">
 <script src="assets/config.js"></script>
 </head>
 <body>
@@ -63,14 +63,29 @@
     <p class="src">周敦頤〈愛蓮說〉</p>
   </aside>
 
+  <nav class="teacher-links" aria-label="老師課堂用">
+    <h2>老師要在課堂上用？</h2>
+    <div class="tl-grid">
+      <a class="tl" href="class/">
+        <span class="tl-ico" aria-hidden="true">🗳️</span>
+        <span class="tl-txt"><b>班級投票</b><span>開一個房間，全班掃 QR 兩輪投票</span></span>
+        <span class="tl-go" aria-hidden="true">›</span>
+      </a>
+      <a class="tl" href="class/guide.html">
+        <span class="tl-ico" aria-hidden="true">📖</span>
+        <span class="tl-txt"><b>使用手冊</b><span>〈愛蓮說〉× SEL 教師手冊（45 分鐘流程）</span></span>
+        <span class="tl-go" aria-hidden="true">›</span>
+      </a>
+    </div>
+  </nav>
+
   <footer>
     網路投票，每台裝置一票，不是科學調查。不收姓名、不用登入。<br>
-    老師要在課堂上用？<a href="class/">課堂版（班級兩輪投票）</a>・<a href="class/guide.html">〈愛蓮說〉×SEL 教師手冊</a><br>
     <span class="small">插畫為 AI 生成（OpenAI Image）；陶淵明、楊貴妃、周敦頤為想像造型。</span>
   </footer>
 </main>
 
-<script src="assets/common.js?v=20261119"></script>
+<script src="assets/common.js?v=20261119b"></script>
 <script>
 let picked = null, token = '';
 const $ = id => document.getElementById(id);

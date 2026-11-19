@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>三花之戰 課堂版</title>
 <meta name="description" content="老師開房間，全班用手機投兩輪：先投、公布「我們班 vs 全網」、討論、再投，看誰改了想法。">
-<link rel="stylesheet" href="../assets/style.css?v=20261119">
+<link rel="stylesheet" href="../assets/style.css?v=20261119b">
 <script src="../assets/config.js"></script>
 </head>
 <body>
@@ -20,7 +20,7 @@
 </div>
 
 <script src="../assets/qrcode.js"></script>
-<script src="../assets/common.js?v=20261119"></script>
+<script src="../assets/common.js?v=20261119b"></script>
 <script>
 const $ = id => document.getElementById(id);
 const app = $('app');
@@ -51,7 +51,7 @@ function landing() {
   app.replaceChildren(
     el('h1', {}, '班級兩輪投票'),
     el('p', { class: 'hint', style: 'margin-top:10px' }, '看完〈三花之戰〉，全班用手機投票。學生不用登入、不填名字。'),
-    el('p', {}, el('a', { class: 'btn ghost small', href: 'guide.html' }, '第一次用？看〈愛蓮說〉× SEL 教師手冊（45 分鐘流程）')),
+    el('p', {}, el('a', { class: 'btn ghost block', href: 'guide.html' }, '📖 使用手冊（45 分鐘上課流程）')),
     el('div', { class: 'card' },
       el('h2', {}, '上課流程'),
       el('ol', { style: 'margin:0;padding-left:1.3em' },

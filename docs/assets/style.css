@@ -226,3 +226,23 @@ body {
 @media print { .banner { display: none; } }
 .sticky-go .btn:disabled { opacity: 1; background: color-mix(in srgb, var(--ink) 12%, var(--card)); color: var(--ink-soft); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
 .sticky-go:has(.btn:disabled) { position: static; }
+
+/* 2026-11-19 老師用的兩個大連結（使用者：「班級投票」「使用手冊」連結太小） */
+.teacher-links { margin: 36px 0 0; }
+.teacher-links h2 { font-size: 18px; margin: 0 0 10px; }
+.tl-grid { display: grid; gap: 12px; }
+@media (min-width: 640px) { .tl-grid { grid-template-columns: 1fr 1fr; } }
+.tl {
+  display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 14px 16px;
+  background: var(--card); border: 2px solid var(--line); border-radius: var(--radius);
+  color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s;
+}
+.tl:hover { border-color: var(--lian); transform: translateY(-1px); }
+.tl:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.tl-ico { font-size: 30px; line-height: 1; flex: none; }
+.tl-txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.tl-txt b { font-size: 20px; color: var(--lian); }
+.tl-txt span { font-size: 15px; color: var(--ink-soft); }
+.tl-go { font-size: 30px; color: var(--ink-soft); flex: none; }
+@media (prefers-reduced-motion: reduce) { .tl { transition: none; } .tl:hover { transform: none; } }
+@media print { .teacher-links { display: none; } }
