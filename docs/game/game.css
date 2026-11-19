@@ -48,14 +48,16 @@
   font: inherit; font-size: 19px; line-height: 1.5; cursor: pointer; transition: border-color .15s, background-color .15s, transform .12s; }
 .g-opt .lt { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 26px;
   background: color-mix(in srgb, var(--ink) 8%, var(--paper)); color: var(--ink); transition: background-color .15s, color .15s; }
-.g-opt:active { transform: scale(.99); }
+.g-opt:active { background: color-mix(in srgb, var(--ink) 6%, var(--card)); }
 .g-opt[aria-pressed="true"] { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, var(--card)); }
 .g-opt[aria-pressed="true"] .lt { background: var(--ink); color: var(--paper); }
 .g-opt:focus-visible, .guess button:focus-visible, .style-opt:focus-visible, .pill:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .guess { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guess button { min-height: 64px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; font-size: 26px; cursor: pointer; }
 .guess button[aria-pressed="true"] { border-color: var(--ju); background: color-mix(in srgb, var(--ju) 16%, var(--card)); color: color-mix(in srgb, var(--ju) 70%, var(--ink)); }
-.send-row { position: sticky; bottom: 12px; z-index: 3; margin-top: 18px; }
+.send-row { position: static; margin-top: 18px; }
+/* 手機：浮在底部的按鈕會蓋住選項（2026-11-20 使用者回報點不到），一律不浮動；按鈕取消雙擊縮放延遲 */
+button, .btn, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .send-row .btn { width: 100%; min-height: 64px; font-size: 21px; box-shadow: 0 8px 24px -8px rgba(0,0,0,.35); }
 .sent { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 14px; margin-top: 16px;
   background: color-mix(in srgb, var(--lian) 12%, var(--card)); border: 2px solid color-mix(in srgb, var(--lian) 40%, var(--line)); }
