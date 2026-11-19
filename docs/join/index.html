@@ -7,18 +7,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/style.css?v=20261119">
 <script src="../assets/config.js"></script>
 </head>
 <body>
-<main class="wrap">
+<header class="banner slim"><img src="../assets/img/hero-800.webp" srcset="../assets/img/hero-800.webp 800w, ../assets/img/hero-1600.webp 1600w" sizes="100vw" width="1600" height="900" alt=""></header>
+<main class="wrap flush">
   <div class="kicker" id="kicker">〈三花之戰〉課堂投票</div>
   <div id="app"></div>
   <div class="err" id="err" role="alert"></div>
   <footer>不收姓名、不用登入。你的票只用一個匿名代號記錄，老師也看不到是誰投的。</footer>
 </main>
 
-<script src="../assets/common.js"></script>
+<script src="../assets/common.js?v=20261119"></script>
 <script>
 const $ = id => document.getElementById(id);
 const app = $('app');
@@ -61,9 +62,9 @@ function voteForm(round) {
     reason = el('textarea', { maxlength: '60', placeholder: '我選這個是因為…（60 字內，不要寫名字）', 'aria-label': '理由' });
     parts.push(el('p', { class: 'small muted', style: 'margin:4px 0' }, '理由只會出現在老師的畫面，不會公開。'), reason, el('div', { style: 'height:12px' }));
   }
-  parts.push(btn);
+  parts.push(el('div', { class: 'sticky-go' }, btn));
   app.replaceChildren(...parts);
-  renderOptions(opts, id => { pick = id; btn.disabled = false; btn.textContent = `送出：${nameOf(id)}`; }, null, round === 2);
+  renderOptions(opts, id => { pick = id; btn.disabled = false; btn.classList.add('colored'); btn.style.setProperty('--c', `var(--${id})`); btn.textContent = `送出：${nameOf(id)}`; }, null, round === 2);
   btn.onclick = async () => {
     if (!pick || busy) return;
     busy = true; btn.disabled = true; setErr('');

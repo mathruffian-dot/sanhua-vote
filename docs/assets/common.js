@@ -1,10 +1,13 @@
 // 三花投票共用：選項、裝置代號、API、長條圖
 const CFG = window.SANHUA_CONFIG;
+// 插畫（Codex 生圖）放在 assets/img/；用 common.js 自己的位置算路徑，子資料夾頁面也對得到
+const IMG_BASE = new URL('img/', document.currentScript ? document.currentScript.src : location.href).href;
+const imgOf = id => IMG_BASE + id + '.webp';
 
 const FLOWERS = [
-  { id: 'ju', flower: '菊', who: '陶淵明', tag: '隱逸', line: '不為五斗米折腰，回家種田，過自己的日子。' },
-  { id: 'mudan', flower: '牡丹', who: '楊貴妃', tag: '富貴', line: '花就是要美、要被看見；大家都愛，就是好。' },
-  { id: 'lian', flower: '蓮', who: '周敦頤', tag: '君子', line: '人在淤泥裡，也可以不被染。' },
+  { id: 'ju', flower: '菊', who: '陶淵明', tag: '隱逸', quote: '菊，花之隱逸者也', line: '不為五斗米折腰，回家種田，過自己的日子。' },
+  { id: 'mudan', flower: '牡丹', who: '楊貴妃', tag: '富貴', quote: '牡丹，花之富貴者也', line: '花就是要美、要被看見；大家都愛，就是好。' },
+  { id: 'lian', flower: '蓮', who: '周敦頤', tag: '君子', quote: '蓮，花之君子者也', line: '人在淤泥裡，也可以不被染。' },
 ];
 const THINK = { id: 'think', flower: '想', who: '我還在想', tag: '', line: '聽了大家的想法，還沒決定。' };
 const FLOWER = Object.fromEntries([...FLOWERS, THINK].map(f => [f.id, f]));
@@ -53,15 +56,23 @@ function el(tag, attrs = {}, ...kids) {
   return e;
 }
 
-// 三個選項按鈕；onPick(id)
+// 三個選項按鈕；onPick(id)。trio＝寬螢幕排成三欄直式卡
 function renderOptions(box, onPick, selected, withThink) {
   box.replaceChildren();
+  box.classList.toggle('trio', !withThink);
   for (const f of withThink ? [...FLOWERS, THINK] : FLOWERS) {
+    const pic = f.id === 'think'
+      ? el('div', { class: 'pic' }, el('div', { class: 'seal' }, '？'))
+      : el('div', { class: 'pic' },
+          el('img', { src: imgOf(f.id), alt: `${f.who}與${f.flower}的插畫`, width: '480', height: '480', loading: 'lazy', decoding: 'async' }),
+          el('span', { class: 'badge' }, f.flower));
     const b = el('button', { class: `opt c-${f.id}`, type: 'button', 'aria-pressed': String(selected === f.id) },
-      el('div', { class: 'seal' + (f.flower.length > 1 ? ' long' : '') }, f.flower),
+      pic,
       el('div', {},
         el('div', { class: 'who' }, f.who, el('span', {}, f.tag)),
-        el('div', { class: 'line' }, `「${f.line}」`)));
+        f.quote ? el('div', { class: 'quote' }, f.quote) : null,
+        el('div', { class: 'line' }, `「${f.line}」`)),
+      el('span', { class: 'tick', 'aria-hidden': 'true' }, '✓'));
     b.addEventListener('click', () => {
       box.querySelectorAll('.opt').forEach(o => o.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
@@ -70,6 +81,9 @@ function renderOptions(box, onPick, selected, withThink) {
     box.append(b);
   }
 }
+
+// 名字前的小標：花用頭像，「還在想」用色塊
+const nameIcon = f => f.id === 'think' ? el('i') : el('img', { class: 'ava', src: imgOf(f.id), alt: '', width: '26', height: '26' });
 
 const total = c => (c.ju || 0) + (c.mudan || 0) + (c.lian || 0) + (c.think || 0);
 const pct = (n, t) => t ? Math.round((n / t) * 100) : 0;
@@ -87,12 +101,12 @@ function renderBars(box, groups) {
       const fill = el('div', { class: 'fill' });
       row.append(
         el('div', { class: 'bar-head' },
-          el('span', { class: 'name' }, el('i'), label(f)),
+          el('span', { class: 'name' }, nameIcon(f), label(f)),
           el('span', { class: 'num' }, `${pct(n, t)}%　${n.toLocaleString()} 票`)),
         el('div', { class: 'track' }, fill));
       requestAnimationFrame(() => { fill.style.width = pct(n, t) + '%'; });
     } else {
-      row.append(el('div', { class: 'bar-head' }, el('span', { class: 'name' }, el('i'), label(f))));
+      row.append(el('div', { class: 'bar-head' }, el('span', { class: 'name' }, nameIcon(f), label(f))));
       for (const g of groups) {
         const t = total(g.counts), n = g.counts[f.id] || 0;
         const fill = el('div', { class: 'fill ' + (g.cls || '') });

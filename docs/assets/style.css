@@ -141,3 +141,84 @@ input:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); o
   .two { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+
+/* ===== 2026-11-19 美化：插畫、橫幅、選項卡 ===== */
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--ju) 7%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at 110% 30%, color-mix(in srgb, var(--lian) 7%, transparent), transparent 60%),
+    var(--paper);
+  background-attachment: fixed;
+}
+.banner { position: relative; width: 100%; max-width: 1200px; margin: 0 auto; overflow: hidden; }
+.banner img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 560px; object-fit: cover; object-position: center 40%; }
+.banner::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, transparent 45%, color-mix(in srgb, var(--paper) 70%, transparent) 75%, var(--paper) 100%);
+}
+.banner-text { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 0 16px 6px; max-width: 960px; margin: 0 auto; }
+.banner-text h1 { font-size: clamp(36px, 7vw, 64px); letter-spacing: .12em; line-height: 1.1; text-shadow: 0 1px 0 var(--paper), 0 0 18px var(--paper); }
+.banner-text .kicker { color: var(--ink); text-shadow: 0 0 10px var(--paper); }
+.tagline { margin: 6px 0 0; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: clamp(16px, 2.6vw, 20px); text-shadow: 0 0 10px var(--paper); }
+.tagline b { color: var(--c); } .tagline .ju { --c: var(--ju); } .tagline .mudan { --c: var(--mudan); } .tagline .lian { --c: var(--lian); }
+.banner.slim img { aspect-ratio: auto; height: clamp(110px, 22vw, 200px); object-position: center 42%; }
+.banner.slim::after { background: linear-gradient(to bottom, transparent 30%, var(--paper) 100%); }
+.wrap.mid { max-width: 960px; }
+.wrap.flush { padding-top: 8px; }
+
+/* 選項卡：手機一欄橫排，寬螢幕三欄直排 */
+.opt { grid-template-columns: 92px 1fr; padding: 10px 12px 10px 10px; position: relative; overflow: hidden;
+  transition: border-color .15s, transform .15s, box-shadow .15s, background-color .15s; }
+.opt:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--line)); }
+.opt[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 7%, var(--card)); transform: translateY(-2px); }
+.pic { position: relative; width: 92px; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--c) 18%, var(--card)); margin: 0; }
+.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pic .badge {
+  position: absolute; left: 6px; bottom: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 8px;
+  display: grid; place-items: center; background: var(--c); color: #fff; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.pic .seal { width: 100%; height: 100%; border-radius: 0; font-size: 34px; }
+.opt .quote { font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 15px; color: var(--c); margin-top: 2px; letter-spacing: .04em; }
+.opt .line { font-size: 14px; line-height: 1.5; }
+.opt .tick {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--c); color: #fff;
+  display: grid; place-items: center; font-size: 15px; font-weight: 800; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s;
+}
+.opt[aria-pressed="true"] .tick { opacity: 1; transform: scale(1); }
+@media (min-width: 760px) {
+  .options.trio { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .options.trio .opt { grid-template-columns: 1fr; align-content: start; padding: 0 0 14px; }
+  .options.trio .pic { width: 100%; aspect-ratio: 4 / 5; border-radius: 0; }
+  .options.trio .pic .badge { left: 12px; bottom: 12px; min-width: 44px; height: 44px; font-size: 24px; border-radius: 10px; }
+  .options.trio .opt > div:not(.pic):not(.tick) { padding: 0 14px; }
+  .options.trio .tick { top: 12px; right: 12px; width: 32px; height: 32px; font-size: 18px; }
+}
+.btn.colored { background: var(--c, var(--ink)); color: #fff; }
+.sticky-go { position: sticky; bottom: 12px; z-index: 2; }
+.sticky-go .btn { box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+
+/* 長條圖小頭像 */
+.bar-row .name .ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; vertical-align: -7px; margin-right: 8px; border: 2px solid var(--c); }
+
+/* 結果：我選的那朵 */
+.mine { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; margin: 18px 0 4px; }
+.mine img { width: 120px; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 14px; border: 3px solid var(--c); display: block; }
+.mine .question { margin: 0; }
+.mine .quote { font-family: "Noto Serif TC", serif; font-weight: 700; color: var(--c); margin: 4px 0 0; }
+
+/* 課文三句 */
+.classic { margin: 28px 0 0; padding: 18px 18px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
+.classic h2 { font-size: 18px; color: var(--ink-soft); margin-bottom: 8px; }
+.classic p { margin: 4px 0; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 19px; letter-spacing: .06em; }
+.classic p span { color: var(--c); }
+.classic .src { font-family: inherit; font-weight: 400; font-size: 13px; color: var(--ink-soft); letter-spacing: 0; margin-top: 8px; }
+@media (max-width: 600px) {
+  .banner:not(.slim)::after { background: linear-gradient(to bottom, transparent 70%, var(--paper) 100%); }
+  .banner-text { position: relative; margin-top: -8px; padding-bottom: 0; }
+}
+@media (max-width: 420px) { .mine { grid-template-columns: 88px 1fr; } .mine img { width: 88px; height: auto; } }
+@media (prefers-reduced-motion: reduce) { .opt, .opt .tick { transition: none; } .opt[aria-pressed="true"] { transform: none; } }
+@media print { .banner { display: none; } }
+.sticky-go .btn:disabled { opacity: 1; background: color-mix(in srgb, var(--ink) 12%, var(--card)); color: var(--ink-soft); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+.sticky-go:has(.btn:disabled) { position: static; }

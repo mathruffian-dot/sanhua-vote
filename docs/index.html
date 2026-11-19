@@ -7,16 +7,30 @@
 <meta name="description" content="看完〈三花之戰〉：菊、牡丹、蓮，你認同哪一種活法？投完就能看到全網的票數。">
 <meta property="og:title" content="〈三花之戰〉你認同哪一種活法？">
 <meta property="og:description" content="菊、牡丹、蓮，投完就能看到全網的票數。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mathruffian-dot.github.io/sanhua-vote/">
+<meta property="og:image" content="https://mathruffian-dot.github.io/sanhua-vote/assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" as="image" href="assets/img/hero-800.webp" imagesrcset="assets/img/hero-800.webp 800w, assets/img/hero-1600.webp 1600w" imagesizes="100vw">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=20261119">
 <script src="assets/config.js"></script>
 </head>
 <body>
-<main class="wrap">
-  <div class="kicker">〈愛蓮說〉延伸・饒舌對決</div>
-  <h1>〈三花之戰〉</h1>
+<header class="banner">
+  <img src="assets/img/hero-800.webp" srcset="assets/img/hero-800.webp 800w, assets/img/hero-1600.webp 1600w" sizes="100vw"
+       width="1600" height="900" alt="長卷插畫：陶淵明在竹籬邊拿著菊花、楊貴妃站在牡丹花叢前、周敦頤在亭邊看著池裡的蓮花">
+  <div class="banner-text">
+    <div class="kicker">〈愛蓮說〉延伸・饒舌對決</div>
+    <h1>三花之戰</h1>
+    <p class="tagline"><b class="ju">菊</b>・<b class="mudan">牡丹</b>・<b class="lian">蓮</b>　三種活法，你站哪一邊？</p>
+  </div>
+</header>
+<main class="wrap mid flush">
 
   <section id="vote">
     <p class="question">周敦頤選了蓮。<br>你認同哪一種活法？</p>
@@ -24,11 +38,14 @@
     <div class="options" id="options"></div>
     <div id="turnstile"></div>
     <div class="err" id="err" role="alert"></div>
-    <button class="btn block" id="submit" disabled>選一朵花</button>
+    <div class="sticky-go"><button class="btn block" id="submit" disabled>點一朵花來選</button></div>
   </section>
 
   <section id="result" hidden>
-    <p class="question" id="mine"></p>
+    <div class="mine" id="mineBox">
+      <img id="mineImg" alt="" width="240" height="240">
+      <div><p class="question" id="mine"></p><p class="quote" id="mineQuote"></p></div>
+    </div>
     <div class="card">
       <h2>全網目前的選擇</h2>
       <div id="bars"></div>
@@ -41,13 +58,22 @@
     <p class="hint" style="margin-top:18px">想一想：周敦頤說「牡丹之愛，宜乎眾矣」。票最多的，就一定是對的嗎？</p>
   </section>
 
+  <aside class="classic" aria-label="課文原句">
+    <h2>課文這樣說</h2>
+    <p class="c-ju"><span>菊</span>，花之隱逸者也；</p>
+    <p class="c-mudan"><span>牡丹</span>，花之富貴者也；</p>
+    <p class="c-lian"><span>蓮</span>，花之君子者也。</p>
+    <p class="src">周敦頤〈愛蓮說〉</p>
+  </aside>
+
   <footer>
     網路投票，每台裝置一票，不是科學調查。不收姓名、不用登入。<br>
-    老師要在課堂上用？<a href="class/">課堂版（班級兩輪投票）</a>
+    老師要在課堂上用？<a href="class/">課堂版（班級兩輪投票）</a>・<a href="class/guide.html">〈愛蓮說〉×SEL 教師手冊</a><br>
+    <span class="small">插畫為 AI 生成（OpenAI Image）；陶淵明、楊貴妃、周敦頤為想像造型。</span>
   </footer>
 </main>
 
-<script src="assets/common.js"></script>
+<script src="assets/common.js?v=20261119"></script>
 <script>
 let picked = null, token = '';
 const $ = id => document.getElementById(id);
@@ -59,6 +85,10 @@ function showResult(choice, counts) {
   $('vote').hidden = true; $('result').hidden = false;
   const t = total(counts), f = FLOWER[choice];
   $('mine').textContent = `你選了${f.flower}，跟全網 ${pct(counts[choice], t)}% 的人一樣。`;
+  $('mineBox').className = `mine c-${choice}`;
+  $('mineImg').src = imgOf(choice); $('mineImg').alt = `${f.who}與${f.flower}的插畫`;
+  $('mineQuote').textContent = `${f.quote}——${f.who}`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   renderBars($('bars'), [{ label: '全網', counts }]);
   $('total').textContent = `目前共 ${t.toLocaleString()} 人投票`;
 }
@@ -66,7 +96,9 @@ function showResult(choice, counts) {
 renderOptions($('options'), id => {
   picked = id;
   $('submit').disabled = false;
-  $('submit').textContent = `投給${FLOWER[id].flower}`;
+  $('submit').classList.add('colored');
+  $('submit').style.setProperty('--c', `var(--${id})`);
+  $('submit').textContent = `投給${FLOWER[id].flower}（${FLOWER[id].who}）`;
 });
 
 $('submit').addEventListener('click', async () => {
