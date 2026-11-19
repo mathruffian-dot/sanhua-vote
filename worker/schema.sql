@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS games (
   qi INTEGER NOT NULL DEFAULT -1,
   stage TEXT NOT NULL DEFAULT 'lobby',
   padlet TEXT NOT NULL DEFAULT '',
+  auto_reveal INTEGER NOT NULL DEFAULT 1,   -- 1＝全員答完自動揭曉、0＝老師按揭曉（舊資料庫用 migrations/2026-11-20_auto_reveal.sql 補欄位）
   created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS game_players (

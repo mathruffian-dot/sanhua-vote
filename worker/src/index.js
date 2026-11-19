@@ -376,8 +376,8 @@ async function createGame(req, env) {
         env.DB.prepare('DELETE FROM games WHERE code = ?1').bind(code),
       ]);
     }
-    await env.DB.prepare('INSERT INTO games (code, key_hash, label, deck, padlet, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
-      .bind(code, keyHash, label, JSON.stringify(deck), padlet, Date.now()).run();
+    await env.DB.prepare('INSERT INTO games (code, key_hash, label, deck, padlet, auto_reveal, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)')
+      .bind(code, keyHash, label, JSON.stringify(deck), padlet, b.auto === false ? 0 : 1, Date.now()).run();
     return json({ ok: true, code, key });
   }
   throw new HttpError(503, 'busy', '遊戲代號用完了，請再按一次');
@@ -411,7 +411,7 @@ async function gameState(url, env, code) {
   const { results: players } = await env.DB.prepare('SELECT seat, device FROM game_players WHERE code = ?1').bind(code).all();
   const t = await gameTallies(env, game);
   const out = {
-    code, label: game.label, stage: game.stage, qi: game.qi, deck: game.deck,
+    code, label: game.label, stage: game.stage, qi: game.qi, deck: game.deck, auto: !!game.auto_reveal,
     joined: players.length, answered: game.qi >= 0 ? t.answered[game.qi] || 0 : 0,
     seats: players.map(p => p.seat).sort((a, b) => a - b),
     padlet: game.stage === 'end' ? game.padlet : '',
@@ -464,7 +464,7 @@ async function gameAnswer(req, env, code) {
   const done = await env.DB.prepare('SELECT COUNT(*) AS n FROM game_answers WHERE code = ?1 AND qi = ?2').bind(code, game.qi).first();
   const joined = await playerCount(env, code);
   let revealed = false;
-  if (joined > 0 && done.n >= joined) {
+  if (game.auto_reveal && joined > 0 && done.n >= joined) {
     const u = await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2").bind(code, game.qi).run();
     revealed = u.meta.changes === 1;
   }
@@ -480,7 +480,7 @@ async function gameTeacher(url, env, code) {
   const totals = { ju: 0, mudan: 0, lian: 0 };
   for (const r of t.rows) totals[r.choice]++;
   return json({
-    code, label: game.label, stage: game.stage, qi: game.qi, deck: game.deck, padlet: game.padlet, created_at: game.created_at,
+    code, label: game.label, stage: game.stage, qi: game.qi, deck: game.deck, padlet: game.padlet, created_at: game.created_at, auto: !!game.auto_reveal,
     joined: players.length, seats: players.map(p => p.seat),
     waiting: game.stage === 'q' ? players.filter(p => !answeredNow.has(p.device)).map(p => p.seat) : [],
     answered: t.answered, per: t.per, guessOk: t.guessOk, majority: t.majority, totals,
@@ -490,6 +490,16 @@ async function gameTeacher(url, env, code) {
 async function gameAdvance(req, env, code) {
   const b = await body(req);
   const game = await requireGameTeacher(env, code, b.key);
+  if (b.action === 'auto') {
+    await env.DB.prepare('UPDATE games SET auto_reveal = ?1 WHERE code = ?2').bind(b.value ? 1 : 0, code).run();
+    // 打開自動時，若這題已經全員答完，直接揭曉
+    if (b.value && game.stage === 'q') {
+      const done = await env.DB.prepare('SELECT COUNT(*) AS n FROM game_answers WHERE code = ?1 AND qi = ?2').bind(code, game.qi).first();
+      const joined = await playerCount(env, code);
+      if (joined > 0 && done.n >= joined) await env.DB.prepare("UPDATE games SET stage = 'reveal' WHERE code = ?1 AND stage = 'q' AND qi = ?2").bind(code, game.qi).run();
+    }
+    return json({ ok: true, auto: !!b.value });
+  }
   if (b.action === 'padlet') {
     const padlet = cleanPadlet(b.padlet);
     await env.DB.prepare('UPDATE games SET padlet = ?1 WHERE code = ?2').bind(padlet, code).run();

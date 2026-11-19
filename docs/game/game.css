@@ -289,3 +289,44 @@ body.teacher .t-guess { font-size: 22px; } body.teacher .t-guess b { color: #7a5
 body.teacher .lobby-stage { min-height: 68vh; align-content: center; }
 body.teacher .lobby-stage .t-qr img { max-width: 380px; }
 body.teacher .t-count { font-size: 80px; }
+
+/* ===== 2026-11-20 大改：結尾三階段、花箋三欄位、揭曉模式、老師結尾分頁 ===== */
+.stepper { list-style: none; margin: 0 0 6px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }  /* 不做浮動：浮動元素會蓋住捲到它下面的按鈕 */
+.stepper button { width: 100%; min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink-soft); font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; padding: 6px; }
+.stepper .sn { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--ink) 10%, var(--paper)); font-size: 15px; flex: none; }
+.stepper li.now button { border-color: var(--mudan); color: var(--ink); background: color-mix(in srgb, var(--mudan) 7%, var(--card)); }
+.stepper li.now .sn { background: var(--mudan); color: #fff; }
+.stepper li.done .sn { background: var(--lian); color: #fff; }
+.stepper li.done button { color: var(--ink); }
+.step-nav { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0 8px; }
+.step-nav .btn { min-height: 60px; flex: 0 1 auto; }
+.step-nav .btn.mudan { flex: 1 1 auto; max-width: 420px; margin-left: auto; }
+.field { margin: 14px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); }
+.field:first-of-type { border-top: 0; padding-top: 0; }
+.flabel { font-weight: 700; margin-bottom: 8px; color: var(--ink); }
+.qsel { width: 100%; font: inherit; font-size: 18px; min-height: 52px; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--line); background: var(--card); color: var(--ink); }
+.qopt { margin-top: 8px; color: var(--ink-soft); font-size: 16px; }
+.checks { display: grid; gap: 8px; }
+.checks label { display: flex; gap: 12px; align-items: center; min-height: 52px; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); cursor: pointer; font-size: 17px; }
+.checks label:has(input:checked) { border-color: var(--lian); background: color-mix(in srgb, var(--lian) 8%, var(--card)); }
+.checks input { width: 24px; height: 24px; accent-color: var(--lian); flex: none; }
+.done-msg { margin-top: 10px; font-weight: 700; color: var(--lian); text-align: center; }
+code.pre { white-space: pre-wrap; display: block; flex: 1 1 100%; }
+.tip { margin: 0 0 16px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--lian) 9%, var(--paper)); border-left: 5px solid var(--lian); font-size: 16px; }
+.talk.follow { margin-top: 12px; border-left-color: var(--lian); background: color-mix(in srgb, var(--lian) 8%, var(--paper)); font-size: 18px; }
+.mode-pick { margin-top: 14px; display: grid; gap: 8px; }
+.mode-pick label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); cursor: pointer; }
+.mode-pick label:has(input:checked) { border-color: var(--lian); background: color-mix(in srgb, var(--lian) 8%, var(--card)); }
+.mode-pick input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--lian); flex: none; }
+.mode-pick span b { display: block; }
+.all-done { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--lian); color: #fff; font-weight: 800; font-size: 20px; text-align: center; animation: popin .4s ease; }
+.end-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.end-tabs button { min-height: 64px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink-soft); font: inherit; font-weight: 800; font-size: 22px; cursor: pointer; }
+.end-tabs button .no { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--ink) 10%, var(--paper)); font-size: 18px; }
+.end-tabs button[aria-selected="true"] { border-color: var(--mudan); color: var(--ink); background: color-mix(in srgb, var(--mudan) 7%, var(--card)); }
+.end-tabs button[aria-selected="true"] .no { background: var(--mudan); color: #fff; }
+.how.big li { font-size: 24px; } .how.big b { font-size: 28px; }
+.review.big div { font-size: 28px; padding: 18px 22px; }
+.rules.big { font-size: 22px; }
+body.teacher .t-qr img { image-rendering: pixelated; }
+@media (max-width: 520px) { .stepper button { font-size: 15px; gap: 4px; min-height: 52px; } .stepper .sn { width: 24px; height: 24px; } }
